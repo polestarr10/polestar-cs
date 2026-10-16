@@ -8,6 +8,7 @@ import {
   Layers
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import { isAwaitingReply, minutesWaiting, formatWaiting, REMINDER_INTERVAL_MIN } from '../hooks/useReplyReminders';
 
 export default function InquiryTable({ 
   inquiries, 
@@ -15,7 +16,8 @@ export default function InquiryTable({
   onViewDetails, 
   onQuickQuote, 
   onDeleteInquiry,
-  onOpenIntake
+  onOpenIntake,
+  now = Date.now()
 }) {
   const [copiedId, setCopiedId] = useState(null);
 
@@ -27,7 +29,7 @@ export default function InquiryTable({
   };
 
   return (
-    <div className="scm-table-container shadow-xl mt-2 overflow-hidden rounded-xl border border-[#1c1715]">
+    <div className="scm-table-container shadow-xl mt-2 overflow-hidden rounded-xl border border-[#342b27]">
       <table className="scm-table">
         <thead>
           <tr>
@@ -53,19 +55,19 @@ export default function InquiryTable({
                     <Layers size={20} />
                   </div>
                   <div className="space-y-0.5">
-                    <div className="text-xs font-extrabold text-white">
+                    <div className="text-sm font-extrabold text-white">
                       No Inquiries in Live Sheet
                     </div>
-                    <div className="text-[11px] text-[#a1928c]">
-                      Paste an incoming freight inquiry email or screenshot to start logging.
+                    <div className="text-[13.5px] text-[#dcd2cd]">
+                      Paste an incoming freight email (text, screenshot or PDF) to start logging.
                     </div>
                   </div>
                   {onOpenIntake && (
                     <button
                       onClick={onOpenIntake}
-                      className="btn-coral text-[11px] py-1.5 px-5 font-extrabold mt-1 shadow-[0_0_16px_rgba(255,160,140,0.45)]"
+                      className="btn-coral text-[13.5px] py-1.5 px-5 font-extrabold mt-1 shadow-[0_0_16px_rgba(255,160,140,0.45)]"
                     >
-                      + Ingest Inquiry
+                      + Paste Email
                     </button>
                   )}
                 </div>
@@ -80,7 +82,7 @@ export default function InquiryTable({
                   className="cursor-pointer hover:bg-[#181311] transition-colors"
                 >
                   {/* Row index */}
-                  <td className="text-center text-[#786b66] font-mono text-[10px]">
+                  <td className="text-center text-[#b3a59e] font-mono text-[12.5px]">
                     {index + 1}
                   </td>
 
@@ -90,7 +92,7 @@ export default function InquiryTable({
                       <span className="drop-shadow-[0_0_6px_rgba(255,160,140,0.35)]">{item.id}</span>
                       <button
                         onClick={(e) => handleCopy(item.id, e)}
-                        className="text-[#786b66] hover:text-[#FFA08C]"
+                        className="text-[#b3a59e] hover:text-[#FFA08C]"
                         title="Copy Ref"
                       >
                         {copiedId === item.id ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
@@ -110,7 +112,7 @@ export default function InquiryTable({
                     <div className="font-semibold text-white max-w-[200px] truncate" title={item.shipperName}>
                       {item.shipperName}
                     </div>
-                    <div className="font-mono text-[9.5px] text-[#a1928c]">
+                    <div className="font-mono text-[12px] text-[#dcd2cd]">
                       {item.gstin || 'N/A'}
                     </div>
                   </td>
@@ -149,9 +151,17 @@ export default function InquiryTable({
                       <span className="font-mono font-bold text-emerald-400">
                         {item.quotedRate}
                       </span>
-                    ) : (
-                      <span className="text-[#786b66] italic text-[10px]">
-                        Pending
+                    ) : isAwaitingReply(item) ? (() => {
+                      const waited = minutesWaiting(item, now);
+                      const overdue = waited >= REMINDER_INTERVAL_MIN;
+                      return (
+                        <span className={`text-[12.5px] font-bold ${overdue ? 'text-[#f87171]' : 'text-amber-300'}`}>
+                          Not replied · {formatWaiting(waited)}
+                        </span>
+                      );
+                    })() : (
+                      <span className="text-[#b3a59e] italic text-[12.5px]">
+                        —
                       </span>
                     )}
                   </td>
@@ -181,7 +191,7 @@ export default function InquiryTable({
                       <button
                         onClick={() => onQuickQuote(item)}
                         className="p-1.5 rounded-full hover:bg-[#261e1b] text-slate-400 hover:text-emerald-400"
-                        title="Send Quote"
+                        title="Draft & send reply"
                       >
                         <Send size={13} />
                       </button>

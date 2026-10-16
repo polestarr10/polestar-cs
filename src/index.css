@@ -11,13 +11,13 @@
   --bg-row-hover: #1c1715;
   --bg-input: #090706;
 
-  --border-dark: #1c1715;
-  --border-subtle: #28211d;
+  --border-dark: #342b27;
+  --border-subtle: #3d332e;
   --border-neon: #FFA08C;
 
-  --text-main: #f5f5f5;
-  --text-muted: #786b66;
-  --text-sub: #a1928c;
+  --text-main: #fafafa;
+  --text-muted: #b3a59e;
+  --text-sub: #dcd2cd;
 
   --neon-coral: #FFA08C;
   --neon-coral-glow: #FFA08C;
@@ -40,8 +40,9 @@ body {
   background-color: #080605;
   color: #f5f5f5;
   min-height: 100vh;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
   overflow-x: hidden;
   background-image: 
     radial-gradient(ellipse at 15% 5%, rgba(255, 160, 140, 0.05), transparent 45%),
@@ -99,11 +100,11 @@ body {
 /* Colors */
 .text-white { color: #ffffff !important; }
 .text-slate-100 { color: #f5f5f5 !important; }
-.text-slate-200 { color: #e5e5e5 !important; }
+.text-slate-200 { color: #f5f5f5 !important; }
 .text-slate-300 { color: #d4d4d4 !important; }
-.text-slate-400 { color: #a1928c !important; }
-.text-slate-500 { color: #786b66 !important; }
-.text-slate-600 { color: #524743 !important; }
+.text-slate-400 { color: #dcd2cd !important; }
+.text-slate-500 { color: #b3a59e !important; }
+.text-slate-600 { color: #948680 !important; }
 
 /* Neon Pastel Coral / Peach Accent (From Reference Image) */
 .text-neon-coral, .text-neon-orange, .text-neon-orange-light { 
@@ -148,27 +149,27 @@ body {
 /* High Density SCMTR Table */
 .scm-table-container {
   overflow-x: auto;
-  border: 1px solid #1c1715;
-  border-radius: 6px;
+  border: 1px solid #342b27;
+  border-radius: 8px;
   background: #0d0b0a;
 }
 
 .scm-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 13.5px;
   white-space: nowrap;
 }
 
 .scm-table th {
   background: #110e0d;
-  color: #a1928c;
-  padding: 6px 10px;
+  color: #dcd2cd;
+  padding: 10px 14px;
   font-weight: 700;
   text-align: left;
-  border-right: 1px solid #1c1715;
-  border-bottom: 1px solid #1c1715;
-  font-size: 10.5px;
+  border-right: 1px solid #342b27;
+  border-bottom: 1px solid #342b27;
+  font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -179,8 +180,8 @@ body {
 }
 
 .scm-table th .th-sub {
-  font-size: 9px;
-  color: #524743;
+  font-size: 11px;
+  color: #948680;
   font-weight: 500;
   text-transform: none;
   display: block;
@@ -188,16 +189,17 @@ body {
 }
 
 .scm-table td {
-  padding: 6px 10px;
-  border-right: 1px solid #181412;
-  border-bottom: 1px solid #181412;
-  color: #e5e5e5;
+  padding: 10px 14px;
+  border-right: 1px solid #2a231f;
+  border-bottom: 1px solid #2a231f;
+  color: #f2f2f2;
+  font-weight: 500;
   vertical-align: middle;
   background: inherit;
 }
 
 .scm-table tr:nth-child(even) {
-  background: #100d0c;
+  background: #15110f;
 }
 
 .scm-table tr:nth-child(odd) {
@@ -205,7 +207,7 @@ body {
 }
 
 .scm-table tr:hover {
-  background: #1c1715 !important;
+  background: #241d1a !important;
 }
 
 .scm-table tr.selected {
@@ -217,8 +219,8 @@ body {
   background: #FFA08C !important;
   color: #0d0b0a !important;
   font-weight: 800 !important;
-  font-size: 11px !important;
-  padding: 5px 13px !important;
+  font-size: 13.5px !important;
+  padding: 8px 18px !important;
   border-radius: 9999px !important;
   border: none !important;
   cursor: pointer !important;
@@ -240,8 +242,8 @@ body {
   color: #FFA08C !important;
   border: 1px solid rgba(255, 160, 140, 0.4) !important;
   font-weight: 700 !important;
-  font-size: 11px !important;
-  padding: 5px 12px !important;
+  font-size: 13.5px !important;
+  padding: 8px 17px !important;
   border-radius: 9999px !important;
   cursor: pointer !important;
   display: inline-flex !important;
@@ -262,8 +264,8 @@ body {
   background: #10b981 !important;
   color: #ffffff !important;
   font-weight: 700 !important;
-  font-size: 11px !important;
-  padding: 5px 13px !important;
+  font-size: 13.5px !important;
+  padding: 8px 18px !important;
   border-radius: 9999px !important;
   border: none !important;
   cursor: pointer !important;
@@ -279,11 +281,11 @@ body {
 
 .btn-dark {
   background: #120f0e !important;
-  color: #d4d4d4 !important;
-  border: 1px solid #241d1a !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #3d332e !important;
   font-weight: 600 !important;
-  font-size: 11px !important;
-  padding: 5px 12px !important;
+  font-size: 13.5px !important;
+  padding: 8px 17px !important;
   border-radius: 9999px !important;
   cursor: pointer !important;
   display: inline-flex !important;
@@ -301,11 +303,11 @@ body {
 /* Minimal Inputs */
 .scm-input {
   background: #090706 !important;
-  border: 1px solid #241d1a !important;
-  color: #e5e5e5 !important;
+  border: 1px solid #3d332e !important;
+  color: #f5f5f5 !important;
   border-radius: 6px !important;
-  padding: 4px 8px !important;
-  font-size: 11px !important;
+  padding: 8px 12px !important;
+  font-size: 13.5px !important;
   outline: none !important;
 }
 
@@ -316,11 +318,11 @@ body {
 
 .scm-select {
   background: #090706 !important;
-  border: 1px solid #241d1a !important;
-  color: #e5e5e5 !important;
+  border: 1px solid #3d332e !important;
+  color: #f5f5f5 !important;
   border-radius: 6px !important;
-  padding: 4px 8px !important;
-  font-size: 11px !important;
+  padding: 8px 12px !important;
+  font-size: 13.5px !important;
   outline: none !important;
   cursor: pointer !important;
 }
@@ -334,9 +336,9 @@ body {
   display: inline-flex !important;
   align-items: center !important;
   gap: 4px !important;
-  padding: 2px 8px !important;
+  padding: 4px 11px !important;
   border-radius: 9999px !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.02em !important;
@@ -378,4 +380,92 @@ body {
   background: rgba(239, 68, 68, 0.15) !important;
   color: #f87171 !important;
   border: 1px solid rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Nomination sheet: spreadsheet-style grid */
+.sheet-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+  border: 1px solid #3d332e;
+  border-radius: 8px;
+  background: #0d0b0a;
+}
+
+.sheet-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+  white-space: nowrap;
+  min-width: 100%;
+}
+
+.sheet-grid th,
+.sheet-grid td {
+  border-right: 1px solid #2f2723;
+  border-bottom: 1px solid #2f2723;
+  padding: 7px 10px;
+  color: #f2f2f2;
+  font-weight: 500;
+  text-align: left;
+}
+
+.sheet-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #1c1715;
+  color: #dcd2cd;
+  font-size: 12.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid #4a3e38;
+}
+
+.sheet-grid tbody tr:nth-child(even) td { background: #110e0d; }
+.sheet-grid tbody tr:hover td { background: #201a17; }
+
+.sheet-grid .num { text-align: right; }
+
+.sheet-grid .sheet-rownum {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+  background: #1c1715 !important;
+  color: #948680;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12px;
+}
+
+.sheet-grid thead .sheet-rownum { z-index: 3; }
+
+.sheet-grid tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: #1c1715;
+  border-top: 2px solid #4a3e38;
+  color: #ffffff;
+}
+
+.sheet-cell-editable { cursor: cell; }
+.sheet-cell-editable:hover { outline: 1px dashed #FFA08C; outline-offset: -2px; }
+
+.sheet-grid td.sheet-cell-editing {
+  padding: 0;
+  outline: 2px solid #FFA08C;
+  outline-offset: -2px;
+}
+
+.sheet-cell-editing input {
+  width: 100%;
+  min-width: 120px;
+  background: #090706;
+  color: #ffffff;
+  border: none;
+  padding: 7px 10px;
+  font: inherit;
+  outline: none;
 }

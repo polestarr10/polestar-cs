@@ -1,344 +1,211 @@
-// Polestar Consolidators & Freight Forwarders - Color-Coded Excel Workbook Generator
+// CS inquiry report (daily / weekly) as Excel. Every figure is computed from
+// the inquiries themselves; anything that can't be measured says so.
 import * as XLSX from 'xlsx';
+import { STATUS_CONFIG } from '../components/StatusBadge';
+import { isAwaitingReply, minutesWaiting, formatWaiting, REMINDER_INTERVAL_MIN } from '../hooks/useReplyReminders';
 
-export function exportInquiriesToExcel(inquiries, options = {}) {
-  const {
-    csAgentName = "Aarti Sharma (CS Desk)",
-    reportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-    shiftName = "General Day Shift (09:00 - 18:00 IST)",
-    targetHierarchy = "VP of CS & Operations Director",
-    branch = "Mundra & Nhava Sheva Consolidation Hub"
-  } = options;
+const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+const statusLabel = (s) => STATUS_CONFIG[s]?.label || s || '';
 
-  // Calculate Metrics
-  const total = inquiries.length;
-  const quotedCount = inquiries.filter(i => i.isQuoted || i.status === 'QUOTED_REPLIED' || i.status === 'BOOKING_WON').length;
-  const pendingCount = inquiries.filter(i => i.status === 'INQUIRY_RECEIVED' || i.status === 'UNDER_REVIEW').length;
-  const wonCount = inquiries.filter(i => i.status === 'BOOKING_WON').length;
-  const totalQuotedUsd = inquiries.reduce((acc, i) => acc + (i.quotedAmountTotal || 0), 0);
-  const repliedList = inquiries.filter(i => i.responseTatMinutes);
-  const avgTat = repliedList.length > 0 
-    ? Math.round(repliedList.reduce((acc, i) => acc + i.responseTatMinutes, 0) / repliedList.length)
-    : 18;
+// Quoted amounts per currency, e.g. "USD 3,450 · INR 12,000" (never summed across currencies).
+function quotedByCurrency(list) {
+  const sums = {};
+  for (const i of list) {
+    if (!i.isQuoted || !(i.quotedAmountTotal > 0)) continue;
+    const c = i.quotedCurrency || 'USD';
+    sums[c] = (sums[c] || 0) + i.quotedAmountTotal;
+  }
+  const parts = Object.entries(sums).map(([c, v]) => `${c} ${v.toLocaleString()}`);
+  return parts.length ? parts.join(' · ') : 'None quoted';
+}
 
-  // 1. Prepare Master Inquiries Rows
-  const masterData = inquiries.map((item, idx) => {
-    let statusLabel = item.status;
-    let colorTag = "NEUTRAL";
-    if (item.status === 'BOOKING_WON') {
-      statusLabel = "🟢 BOOKING CONFIRMED (WON)";
-      colorTag = "GREEN";
-    } else if (item.status === 'QUOTED_REPLIED') {
-      statusLabel = "🟢 QUOTED & REPLIED";
-      colorTag = "GREEN";
-    } else if (item.status === 'INQUIRY_RECEIVED') {
-      statusLabel = "🟡 INQUIRY RECEIVED (PENDING REPLY)";
-      colorTag = "YELLOW";
-    } else if (item.status === 'UNDER_REVIEW') {
-      statusLabel = "🔵 UNDER LINER RATE REVIEW";
-      colorTag = "BLUE";
-    } else if (item.status === 'FOLLOWUP_NEEDED') {
-      statusLabel = "🟣 FOLLOW-UP REQUIRED";
-      colorTag = "PURPLE";
-    } else if (item.status === 'CLOSED_LOST') {
-      statusLabel = "🔴 CLOSED / LOST";
-      colorTag = "RED";
-    }
-
-    return {
-      "S.No": idx + 1,
-      "Inquiry Ref ID": item.id,
-      "Received Date & Time": item.receivedAt ? new Date(item.receivedAt).toLocaleString('en-IN') : "N/A",
-      "Shipper / Company Name": item.shipperName || "N/A",
-      "GSTIN": item.gstin || "N/A",
-      "Contact Person": item.contactPerson || "N/A",
-      "Email & Phone": `${item.contactEmail || ''} | ${item.contactPhone || ''}`,
-      "POL (Origin Port)": item.pol || "N/A",
-      "POD (Destination)": item.pod || "N/A",
-      "Routing Mode": item.routingMode || "Ocean FCL",
-      "Container / Equipment Specs": item.containerType || "N/A",
-      "Gross Wt (KG)": item.grossWeightKg ? item.grossWeightKg.toLocaleString() : "N/A",
-      "Volume (CBM)": item.volumeCbm || "N/A",
-      "Commodity Description": item.commodity || "N/A",
-      "Incoterms": item.incoterms || "FOB",
-      "CS Assigned": item.assignedTo || csAgentName,
-      "Replied?": item.hasReplied ? "YES" : "NO",
-      "Reply Timestamp": item.repliedAt ? new Date(item.repliedAt).toLocaleTimeString('en-IN') : "Pending",
-      "Response TAT": item.responseTatMinutes ? `${item.responseTatMinutes} Mins` : "Pending",
-      "Quoted Rate": item.quotedRate || "Awaiting Rate",
-      "Quoted Total ($)": item.quotedAmountTotal ? `$${item.quotedAmountTotal.toLocaleString()}` : "$0",
-      "Free Days at POD": item.freeDaysAtPod || "14 Days",
-      "CRM Status": statusLabel,
-      "Color Indicator": colorTag,
-      "Executive Conversation Gist": item.conversationGist || ""
-    };
-  });
-
-  // 2. Prepare Executive Summary Rows (For VP / Director)
-  const executiveSummaryData = [
-    { "Metric Category": "COMPANY", "Value": "Polestar Consolidators & Freight Forwarders Pvt Ltd" },
-    { "Metric Category": "REPORT TYPE", "Value": "CS Daily Operations & Inquiry Conversion Report" },
-    { "Metric Category": "REPORT DATE", "Value": reportDate },
-    { "Metric Category": "SHIFT / BRANCH", "Value": `${shiftName} | ${branch}` },
-    { "Metric Category": "SUBMITTED BY", "Value": csAgentName },
-    { "Metric Category": "SUBMITTED TO", "Value": targetHierarchy },
-    { "Metric Category": "----------------", "Value": "--------------------------------------------------" },
-    { "Metric Category": "TOTAL INQUIRIES LOGGED", "Value": total },
-    { "Metric Category": "QUOTED & REPLIED INQUIRIES", "Value": `${quotedCount} (${Math.round((quotedCount/total)*100 || 0)}%)` },
-    { "Metric Category": "PENDING CS ACTION / LINER CHECK", "Value": pendingCount },
-    { "Metric Category": "CONFIRMED BOOKINGS (WON)", "Value": wonCount },
-    { "Metric Category": "TOTAL QUOTED PIPELINE VALUE", "Value": `$${totalQuotedUsd.toLocaleString()} USD` },
-    { "Metric Category": "AVERAGE CS RESPONSE TAT", "Value": `${avgTat} Minutes (Target: < 30 Mins)` },
-    { "Metric Category": "SLA COMPLIANCE RATE", "Value": "94.2% on-time quotes" }
-  ];
-
-  // 3. Prepare Pending Followups Sheet
-  const pendingData = inquiries
-    .filter(i => !i.hasReplied || i.status === 'INQUIRY_RECEIVED' || i.status === 'UNDER_REVIEW' || i.status === 'FOLLOWUP_NEEDED')
-    .map((item, idx) => ({
-      "Priority": idx + 1,
-      "Inquiry ID": item.id,
-      "Shipper": item.shipperName,
-      "Route": `${item.polCode || 'Origin'} -> ${item.podCode || 'Dest'}`,
-      "Cargo": `${item.containerType} (${item.commodity})`,
-      "Pending Reason": item.status === 'UNDER_REVIEW' ? "Awaiting special freight rate from Liner desk" : (item.status === 'FOLLOWUP_NEEDED' ? "Customer requested destination THC discount" : "Quote pending generation"),
-      "Assigned CS": item.assignedTo,
-      "Urgency": item.urgency || "NORMAL"
-    }));
-
-  // Create Workbook
-  const workbook = XLSX.utils.book_new();
-
-  // Create Master Worksheet
-  const masterSheet = XLSX.utils.json_to_sheet(masterData);
-  
-  // Set Column Widths for clean viewing
-  masterSheet['!cols'] = [
-    { wch: 6 },  // S.No
-    { wch: 15 }, // ID
-    { wch: 22 }, // Received
-    { wch: 32 }, // Shipper
-    { wch: 18 }, // GSTIN
-    { wch: 18 }, // Contact
-    { wch: 32 }, // Email & Phone
-    { wch: 24 }, // POL
-    { wch: 24 }, // POD
-    { wch: 16 }, // Mode
-    { wch: 22 }, // Container
-    { wch: 14 }, // Weight
-    { wch: 14 }, // Volume
-    { wch: 30 }, // Commodity
-    { wch: 14 }, // Incoterms
-    { wch: 20 }, // CS Assigned
-    { wch: 10 }, // Replied
-    { wch: 16 }, // Reply Time
-    { wch: 14 }, // TAT
-    { wch: 20 }, // Quoted Rate
-    { wch: 16 }, // Quoted Total
-    { wch: 20 }, // Free Days
-    { wch: 32 }, // CRM Status
-    { wch: 14 }, // Color Indicator
-    { wch: 60 }  // Gist
-  ];
-
-  const summarySheet = XLSX.utils.json_to_sheet(executiveSummaryData);
-  summarySheet['!cols'] = [{ wch: 35 }, { wch: 50 }];
-
-  const pendingSheet = XLSX.utils.json_to_sheet(pendingData.length > 0 ? pendingData : [{ "Status": "No pending follow-ups for today!" }]);
-  pendingSheet['!cols'] = [{ wch: 10 }, { wch: 16 }, { wch: 30 }, { wch: 22 }, { wch: 35 }, { wch: 45 }, { wch: 20 }, { wch: 12 }];
-
-  // Append Sheets
-  XLSX.utils.book_append_sheet(workbook, masterSheet, "Daily_Inquiries_Master");
-  XLSX.utils.book_append_sheet(workbook, summarySheet, "VP_Executive_Summary");
-  XLSX.utils.book_append_sheet(workbook, pendingSheet, "Pending_Action_Items");
-
-  // Generate File and Trigger Download
-  const dateFormatted = new Date().toISOString().split('T')[0];
-  const filename = `Polestar_CS_Inquiries_EOD_${dateFormatted}.xlsx`;
-  XLSX.writeFile(workbook, filename);
-
+export function reportMetrics(list, now = Date.now()) {
+  const replied = list.filter(i => i.hasReplied || i.isQuoted || i.status === 'QUOTED_REPLIED' || i.status === 'BOOKING_WON');
+  const tats = list.map(i => i.responseTatMinutes).filter(t => typeof t === 'number' && t >= 0);
+  const avgTat = tats.length ? Math.round(tats.reduce((a, b) => a + b, 0) / tats.length) : null;
+  const onTime = tats.length ? Math.round((tats.filter(t => t <= REMINDER_INTERVAL_MIN).length / tats.length) * 100) : null;
+  const awaiting = list.filter(isAwaitingReply);
   return {
-    success: true,
-    filename,
-    totalExported: total,
-    summary: { total, quotedCount, pendingCount, wonCount, totalQuotedUsd, avgTat }
+    total: list.length,
+    replied: replied.length,
+    awaiting: awaiting.length,
+    overdue: awaiting.filter(i => minutesWaiting(i, now) >= REMINDER_INTERVAL_MIN).length,
+    won: list.filter(i => i.status === 'BOOKING_WON').length,
+    lost: list.filter(i => i.status === 'CLOSED_LOST').length,
+    avgTat,
+    onTime,
+    tatSample: tats.length,
+    quoted: quotedByCurrency(list),
   };
 }
 
-// Color-coded HTML Table Download for Rich Visual Presentation in Excel
-export function exportColorCodedHtmlExcel(inquiries, options = {}) {
-  const {
-    csAgentName = "Aarti Sharma (CS Operations Desk)",
-    reportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    shiftName = "General Day Shift (09:00 - 18:00 IST)",
-    targetHierarchy = "VP of CS & Operations Director",
-    branch = "Nhava Sheva & Mundra Regional Hub"
-  } = options;
+// What the inquiry is waiting on, from its real state and history.
+function pendingReason(i, now) {
+  if (isAwaitingReply(i)) {
+    const waited = formatWaiting(minutesWaiting(i, now));
+    return i.awaitingSince && i.awaitingSince !== i.receivedAt
+      ? `Customer replied; awaiting our response for ${waited}`
+      : `Awaiting our first reply for ${waited}`;
+  }
+  const log = i.auditLog || [];
+  const last = log[log.length - 1];
+  return last ? `${statusLabel(i.status)} – last: ${last.action}` : statusLabel(i.status);
+}
 
-  const total = inquiries.length;
-  const quotedCount = inquiries.filter(i => i.isQuoted || i.status === 'QUOTED_REPLIED' || i.status === 'BOOKING_WON').length;
-  const pendingCount = inquiries.filter(i => i.status === 'INQUIRY_RECEIVED' || i.status === 'UNDER_REVIEW').length;
-  const wonCount = inquiries.filter(i => i.status === 'BOOKING_WON').length;
-  const totalQuotedUsd = inquiries.reduce((acc, i) => acc + (i.quotedAmountTotal || 0), 0);
+function header(opts) {
+  return [
+    ['Polestar Consolidators & Freight Forwarders Pvt Ltd'],
+    [`CS Inquiry Report – ${opts.periodLabel || ''}`],
+    [`Prepared by: ${opts.preparedBy || 'CS Desk'}${opts.recipient ? `   |   For: ${opts.recipient}` : ''}${opts.branch ? `   |   Branch: ${opts.branch}` : ''}`],
+    [`Generated: ${fmtDateTime(new Date().toISOString())}`],
+    [],
+  ];
+}
 
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'BOOKING_WON':
-        return 'background-color: #d1fae5; color: #065f46; font-weight: bold; border-left: 6px solid #10b981;';
-      case 'QUOTED_REPLIED':
-        return 'background-color: #ecfdf5; color: #047857; font-weight: 600; border-left: 6px solid #34d399;';
-      case 'INQUIRY_RECEIVED':
-        return 'background-color: #fef3c7; color: #92400e; font-weight: 600; border-left: 6px solid #f59e0b;';
-      case 'UNDER_REVIEW':
-        return 'background-color: #e0f2fe; color: #0369a1; font-weight: 600; border-left: 6px solid #0284c7;';
-      case 'FOLLOWUP_NEEDED':
-        return 'background-color: #f3e8ff; color: #6b21a8; font-weight: 600; border-left: 6px solid #a855f7;';
-      case 'CLOSED_LOST':
-        return 'background-color: #ffe4e6; color: #9f1239; font-weight: 600; border-left: 6px solid #f43f5e;';
-      default:
-        return 'background-color: #f8fafc; color: #334155;';
-    }
-  };
+function summaryRows(m) {
+  return [
+    ['Inquiries received', m.total],
+    ['Replied / quoted', `${m.replied}${m.total ? ` (${Math.round((m.replied / m.total) * 100)}%)` : ''}`],
+    ['Still awaiting our reply', `${m.awaiting}${m.overdue ? ` (${m.overdue} waiting over ${REMINDER_INTERVAL_MIN} min)` : ''}`],
+    ['Bookings confirmed (nominations)', m.won],
+    ['Closed / lost', m.lost],
+    ['Average reply time', m.avgTat === null ? 'No reply times recorded yet' : `${m.avgTat} min (from ${m.tatSample} replies)`],
+    [`Replies within ${REMINDER_INTERVAL_MIN} min`, m.onTime === null ? 'No reply times recorded yet' : `${m.onTime}%`],
+    ['Quoted value', m.quoted],
+  ];
+}
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'BOOKING_WON': return '🟢 BOOKING CONFIRMED (WON)';
-      case 'QUOTED_REPLIED': return '🟢 QUOTED & REPLIED';
-      case 'INQUIRY_RECEIVED': return '🟡 INQUIRY RECEIVED (PENDING)';
-      case 'UNDER_REVIEW': return '🔵 UNDER LINER RATE CHECK';
-      case 'FOLLOWUP_NEEDED': return '🟣 FOLLOW-UP NEEDED';
-      case 'CLOSED_LOST': return '🔴 CLOSED / LOST';
-      default: return status;
-    }
-  };
+export function exportInquiriesToExcel(list, opts = {}) {
+  const now = Date.now();
+  const m = reportMetrics(list, now);
 
-  let html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <!--[if gte mso 9]>
-      <xml>
-        <x:ExcelWorkbook>
-          <x:ExcelWorksheets>
-            <x:ExcelWorksheet>
-              <x:Name>Polestar CS Operations EOD</x:Name>
-              <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-            </x:ExcelWorksheet>
-          </x:ExcelWorksheets>
-        </x:ExcelWorkbook>
-      </xml>
-      <![endif]-->
-      <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
-      <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; }
-        .header-title { background: #0a192f; color: #00d2ff; font-size: 16pt; font-weight: bold; padding: 12px; }
-        .header-subtitle { background: #0f274a; color: #ffffff; font-size: 11pt; padding: 8px; }
-        .meta-table td { padding: 6px 12px; font-size: 10pt; }
-        .th-main { background: #1e293b; color: #f8fafc; font-weight: bold; font-size: 10pt; text-align: center; border: 1px solid #cbd5e1; padding: 10px; }
-        .td-cell { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 9.5pt; }
-        .kpi-card { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-weight: bold; }
-      </style>
-    </head>
-    <body>
-      <table border="0" style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td colspan="15" class="header-title" style="text-align: center; height: 40px;">
-            ★ POLESTAR CONSOLIDATORS & FREIGHT FORWARDERS PVT LTD ★
-          </td>
-        </tr>
-        <tr>
-          <td colspan="15" class="header-subtitle" style="text-align: center; height: 28px;">
-            DAILY CUSTOMER SERVICE (CS) INQUIRY LOG & CONVERSION EOD REPORT
-          </td>
-        </tr>
-        <tr><td colspan="15" style="height: 10px;"></td></tr>
-        
-        <!-- Metadata block -->
-        <tr>
-          <td colspan="3" style="background:#f8fafc; font-weight:bold;">Report Date & Time:</td>
-          <td colspan="4" style="background:#f8fafc;">${reportDate}</td>
-          <td colspan="3" style="background:#f8fafc; font-weight:bold;">Shift & Branch:</td>
-          <td colspan="5" style="background:#f8fafc;">${shiftName} (${branch})</td>
-        </tr>
-        <tr>
-          <td colspan="3" style="background:#f8fafc; font-weight:bold;">Report Prepared By:</td>
-          <td colspan="4" style="background:#f8fafc;">${csAgentName}</td>
-          <td colspan="3" style="background:#f8fafc; font-weight:bold;">Report Submitted To:</td>
-          <td colspan="5" style="background:#f8fafc; font-weight:bold; color: #1e40af;">${targetHierarchy}</td>
-        </tr>
-        <tr><td colspan="15" style="height: 12px;"></td></tr>
+  const masterRows = list.map((i, idx) => ({
+    'S.No': idx + 1,
+    'Inquiry Ref': i.id,
+    'Received': fmtDateTime(i.receivedAt),
+    'Shipper / Company': i.shipperName || '',
+    'GSTIN': i.gstin || '',
+    'Contact Person': i.contactPerson || '',
+    'Email': i.contactEmail || '',
+    'Phone': i.contactPhone || '',
+    'POL': i.pol || '',
+    'POD': i.pod || '',
+    'Mode': i.routingMode || '',
+    'Equipment': i.containerType || '',
+    'Gross Wt (KG)': i.grossWeightKg || '',
+    'Volume (CBM)': i.volumeCbm || '',
+    'Commodity': i.commodity || '',
+    'Incoterms': i.incoterms || '',
+    'Handled By': i.assignedTo || '',
+    'Replied?': i.hasReplied ? 'Yes' : 'No',
+    'Replied At': fmtDateTime(i.repliedAt),
+    'Reply Time (min)': typeof i.responseTatMinutes === 'number' ? i.responseTatMinutes : '',
+    'Quoted Rate': i.quotedRate || '',
+    'Free Days at POD': i.freeDaysAtPod || '',
+    'Status': statusLabel(i.status),
+    'Lost Reason': i.lostReason || '',
+    'Summary': i.conversationGist || '',
+  }));
 
-        <!-- KPI Summary Cards -->
-        <tr>
-          <td colspan="3" class="kpi-card" style="background:#e0e7ff; color:#3730a3;">TOTAL INQUIRIES: ${total}</td>
-          <td colspan="3" class="kpi-card" style="background:#dcfce7; color:#166534;">QUOTED & REPLIED: ${quotedCount} (${Math.round((quotedCount/total)*100 || 0)}%)</td>
-          <td colspan="3" class="kpi-card" style="background:#fef3c7; color:#92400e;">PENDING ACTION: ${pendingCount}</td>
-          <td colspan="3" class="kpi-card" style="background:#d1fae5; color:#065f46;">BOOKINGS WON: ${wonCount}</td>
-          <td colspan="3" class="kpi-card" style="background:#ede9fe; color:#5b21b6;">TOTAL PIPELINE: $${totalQuotedUsd.toLocaleString()} USD</td>
-        </tr>
-        <tr><td colspan="15" style="height: 15px;"></td></tr>
+  const pendingRows = list
+    .filter(i => !['BOOKING_WON', 'CLOSED_LOST'].includes(i.status))
+    // Ours to answer first (longest wait at the top), then those waiting on the customer.
+    .sort((a, b) => (isAwaitingReply(b) - isAwaitingReply(a)) || (minutesWaiting(b, now) - minutesWaiting(a, now)))
+    .map((i, idx) => ({
+      'Priority': idx + 1,
+      'Inquiry Ref': i.id,
+      'Shipper': i.shipperName || '',
+      'Route': `${i.polCode || i.pol || '?'} -> ${i.podCode || i.pod || '?'}`,
+      'Equipment / Cargo': [i.containerType, i.commodity].filter(Boolean).join(' – '),
+      'Status': statusLabel(i.status),
+      'Where it stands': pendingReason(i, now),
+      'Handled By': i.assignedTo || '',
+      'Urgent': i.urgency === 'HIGH' ? 'Yes' : '',
+    }));
 
-        <!-- Table Header -->
-        <tr style="height: 32px;">
-          <th class="th-main">Inquiry ID</th>
-          <th class="th-main">Received</th>
-          <th class="th-main">Shipper / Company</th>
-          <th class="th-main">GSTIN</th>
-          <th class="th-main">POL (Origin)</th>
-          <th class="th-main">POD (Dest)</th>
-          <th class="th-main">Routing Mode</th>
-          <th class="th-main">Container / Specs</th>
-          <th class="th-main">Gross Wt</th>
-          <th class="th-main">Commodity</th>
-          <th class="th-main">CS Rep</th>
-          <th class="th-main">Replied?</th>
-          <th class="th-main">Quoted Rate</th>
-          <th class="th-main">Status (Color-Coded)</th>
-          <th class="th-main">Conversation Summary / Gist</th>
-        </tr>
-  `;
+  const wb = XLSX.utils.book_new();
 
-  inquiries.forEach((item) => {
-    const statusStyle = getStatusStyle(item.status);
-    const statusBadge = getStatusBadge(item.status);
+  const summary = XLSX.utils.aoa_to_sheet([...header(opts), ['Metric', 'Value'], ...summaryRows(m)]);
+  summary['!cols'] = [{ wch: 36 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, summary, 'Summary');
 
-    html += `
-      <tr style="height: 28px;">
-        <td class="td-cell" style="font-family: monospace; font-weight: bold; text-align: center;">${item.id}</td>
-        <td class="td-cell" style="text-align: center;">${item.receivedAt ? new Date(item.receivedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
-        <td class="td-cell" style="font-weight: 600;">${item.shipperName}</td>
-        <td class="td-cell" style="font-family: monospace; font-size: 9pt;">${item.gstin}</td>
-        <td class="td-cell" style="text-align: center;">${item.pol}</td>
-        <td class="td-cell" style="text-align: center;">${item.pod}</td>
-        <td class="td-cell" style="text-align: center;">${item.routingMode}</td>
-        <td class="td-cell" style="font-weight: 600;">${item.containerType}</td>
-        <td class="td-cell" style="text-align: right;">${item.grossWeightKg ? item.grossWeightKg.toLocaleString() + ' KG' : 'N/A'}</td>
-        <td class="td-cell">${item.commodity}</td>
-        <td class="td-cell">${item.assignedTo}</td>
-        <td class="td-cell" style="text-align: center; font-weight: bold; color: ${item.hasReplied ? '#16a34a' : '#ea580c'};">${item.hasReplied ? 'YES (' + item.responseTatMinutes + 'm)' : 'PENDING'}</td>
-        <td class="td-cell" style="font-weight: bold; color: #0284c7; text-align: right;">${item.quotedRate || '-'}</td>
-        <td class="td-cell" style="${statusStyle}">${statusBadge}</td>
-        <td class="td-cell" style="color: #475569; font-size: 9pt;">${item.conversationGist}</td>
-      </tr>
-    `;
-  });
+  const master = XLSX.utils.json_to_sheet(masterRows.length ? masterRows : [{ Note: 'No inquiries in this period.' }]);
+  master['!cols'] = Object.keys(masterRows[0] || { Note: '' }).map(k => ({ wch: k === 'Summary' ? 60 : Math.max(12, k.length + 2) }));
+  XLSX.utils.book_append_sheet(wb, master, 'Inquiries');
 
-  html += `
-      </table>
-    </body>
-    </html>
-  `;
+  const pending = XLSX.utils.json_to_sheet(pendingRows.length ? pendingRows : [{ Note: 'Nothing pending.' }]);
+  pending['!cols'] = [{ wch: 9 }, { wch: 16 }, { wch: 30 }, { wch: 20 }, { wch: 36 }, { wch: 20 }, { wch: 55 }, { wch: 24 }, { wch: 8 }];
+  XLSX.utils.book_append_sheet(wb, pending, 'Pending_Actions');
 
-  // Trigger HTML blob download with .xls / .xlsx extension for Excel
+  const filename = `Polestar_CS_Report_${opts.fileStamp || new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  return { filename, metrics: m };
+}
+
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const STATUS_STYLE = {
+  BOOKING_WON: 'background:#d1fae5;color:#065f46;font-weight:bold;',
+  QUOTED_REPLIED: 'background:#ecfdf5;color:#047857;font-weight:600;',
+  INQUIRY_RECEIVED: 'background:#fef3c7;color:#92400e;font-weight:600;',
+  UNDER_REVIEW: 'background:#e0f2fe;color:#0369a1;font-weight:600;',
+  FOLLOWUP_NEEDED: 'background:#f3e8ff;color:#6b21a8;font-weight:600;',
+  CLOSED_LOST: 'background:#ffe4e6;color:#9f1239;font-weight:600;',
+};
+
+// Colour-coded sheet (HTML that Excel opens as .xls).
+export function exportColorCodedHtmlExcel(list, opts = {}) {
+  const now = Date.now();
+  const m = reportMetrics(list, now);
+  const cell = 'border:1px solid #cbd5e1;padding:6px 8px;font-size:10pt;';
+  const th = 'background:#1e293b;color:#f8fafc;font-weight:bold;border:1px solid #cbd5e1;padding:8px;font-size:10pt;';
+
+  const rows = list.map(i => `
+    <tr>
+      <td style="${cell}font-family:monospace;font-weight:bold;">${escapeHtml(i.id)}</td>
+      <td style="${cell}">${escapeHtml(fmtDateTime(i.receivedAt))}</td>
+      <td style="${cell}font-weight:600;">${escapeHtml(i.shipperName)}</td>
+      <td style="${cell}">${escapeHtml(i.pol)}</td>
+      <td style="${cell}">${escapeHtml(i.pod)}</td>
+      <td style="${cell}">${escapeHtml(i.containerType)}</td>
+      <td style="${cell}text-align:right;">${i.grossWeightKg ? escapeHtml(i.grossWeightKg.toLocaleString()) + ' KG' : ''}</td>
+      <td style="${cell}">${escapeHtml(i.commodity)}</td>
+      <td style="${cell}">${escapeHtml(i.assignedTo)}</td>
+      <td style="${cell}text-align:center;font-weight:bold;color:${i.hasReplied ? '#16a34a' : '#ea580c'};">${i.hasReplied ? `Yes${typeof i.responseTatMinutes === 'number' ? ` (${i.responseTatMinutes} min)` : ''}` : 'No'}</td>
+      <td style="${cell}font-weight:bold;">${escapeHtml(i.quotedRate)}</td>
+      <td style="${cell}${STATUS_STYLE[i.status] || ''}">${escapeHtml(statusLabel(i.status))}</td>
+      <td style="${cell}color:#475569;">${escapeHtml(i.conversationGist)}</td>
+    </tr>`).join('');
+
+  const summary = summaryRows(m).map(([k, v]) => `<tr><td style="${cell}font-weight:bold;background:#f1f5f9;">${escapeHtml(k)}</td><td colspan="4" style="${cell}">${escapeHtml(v)}</td></tr>`).join('');
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta http-equiv="content-type" content="text/plain; charset=UTF-8"/></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;">
+<table style="border-collapse:collapse;">
+  <tr><td colspan="13" style="font-size:15pt;font-weight:bold;padding:8px;">Polestar Consolidators &amp; Freight Forwarders Pvt Ltd</td></tr>
+  <tr><td colspan="13" style="font-size:11pt;padding:4px 8px;">CS Inquiry Report – ${escapeHtml(opts.periodLabel || '')}</td></tr>
+  <tr><td colspan="13" style="font-size:10pt;padding:4px 8px;">Prepared by: ${escapeHtml(opts.preparedBy || 'CS Desk')}${opts.recipient ? ` | For: ${escapeHtml(opts.recipient)}` : ''}${opts.branch ? ` | Branch: ${escapeHtml(opts.branch)}` : ''} | Generated: ${escapeHtml(fmtDateTime(new Date().toISOString()))}</td></tr>
+  <tr><td colspan="13" style="height:8px;"></td></tr>
+  ${summary}
+  <tr><td colspan="13" style="height:12px;"></td></tr>
+  <tr>
+    <th style="${th}">Inquiry Ref</th><th style="${th}">Received</th><th style="${th}">Shipper</th><th style="${th}">POL</th>
+    <th style="${th}">POD</th><th style="${th}">Equipment</th><th style="${th}">Gross Wt</th><th style="${th}">Commodity</th>
+    <th style="${th}">Handled By</th><th style="${th}">Replied?</th><th style="${th}">Quoted Rate</th><th style="${th}">Status</th><th style="${th}">Summary</th>
+  </tr>
+  ${rows || `<tr><td colspan="13" style="${cell}">No inquiries in this period.</td></tr>`}
+</table>
+</body></html>`;
+
   const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const dateStr = new Date().toISOString().split('T')[0];
   link.href = url;
-  link.download = `Polestar_CS_ColorCoded_EOD_${dateStr}.xls`;
+  link.download = `Polestar_CS_Report_${opts.fileStamp || new Date().toISOString().slice(0, 10)}.xls`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-
-  return { success: true };
+  return { metrics: m };
 }

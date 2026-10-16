@@ -34,38 +34,58 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     assigned_to TEXT,
     conversation_gist TEXT,
     screenshot_url TEXT,
+    email_subject TEXT,
+    replied_at TIMESTAMPTZ,
+    response_tat_minutes INTEGER,
+    confirmed_at TIMESTAMPTZ,
+    nomination JSONB,
+    awaiting_since TIMESTAMPTZ,
+    lost_reason TEXT,
+    lost_note TEXT,
     audit_log JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 1b. Migration for existing databases (reply workflow + nomination sheet columns)
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS email_subject TEXT;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS replied_at TIMESTAMPTZ;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS response_tat_minutes INTEGER;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS nomination JSONB;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS awaiting_since TIMESTAMPTZ;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS lost_reason TEXT;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS lost_note TEXT;
+CREATE INDEX IF NOT EXISTS idx_inquiries_confirmed_at ON public.inquiries(confirmed_at DESC);
 
 -- 2. Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_inquiries_status ON public.inquiries(status);
 CREATE INDEX IF NOT EXISTS idx_inquiries_received_at ON public.inquiries(received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_inquiries_shipper ON public.inquiries(shipper_name);
 
--- 3. Enable Row Level Security (RLS) & Public Access Policy for Live CS Team
+-- 3. Row Level Security: only signed-in CS reps can see or change inquiries.
+-- (Existing databases: run supabase_migration_2026_10.sql, which swaps the old open policies for these.)
 ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for anon/authenticated roles (for internal CS operations)
-CREATE POLICY "Allow anonymous read access to inquiries" 
-ON public.inquiries FOR SELECT 
-TO anon, authenticated 
+CREATE POLICY "Signed-in reps can read inquiries"
+ON public.inquiries FOR SELECT
+TO authenticated
 USING (true);
 
-CREATE POLICY "Allow anonymous insert access to inquiries" 
-ON public.inquiries FOR INSERT 
-TO anon, authenticated 
+CREATE POLICY "Signed-in reps can add inquiries"
+ON public.inquiries FOR INSERT
+TO authenticated
 WITH CHECK (true);
 
-CREATE POLICY "Allow anonymous update access to inquiries" 
-ON public.inquiries FOR UPDATE 
-TO anon, authenticated 
-USING (true);
+CREATE POLICY "Signed-in reps can update inquiries"
+ON public.inquiries FOR UPDATE
+TO authenticated
+USING (true)
+WITH CHECK (true);
 
-CREATE POLICY "Allow anonymous delete access to inquiries" 
-ON public.inquiries FOR DELETE 
-TO anon, authenticated 
+CREATE POLICY "Signed-in reps can delete inquiries"
+ON public.inquiries FOR DELETE
+TO authenticated
 USING (true);
 
 -- 4. Automatic updated_at Trigger

@@ -47,6 +47,14 @@ export function mapRowToInquiry(row) {
     assignedTo: row.assigned_to,
     conversationGist: row.conversation_gist,
     screenshotUrl: row.screenshot_url,
+    emailSubject: row.email_subject,
+    repliedAt: row.replied_at,
+    responseTatMinutes: row.response_tat_minutes,
+    confirmedAt: row.confirmed_at,
+    nomination: row.nomination || null,
+    awaitingSince: row.awaiting_since,
+    lostReason: row.lost_reason,
+    lostNote: row.lost_note,
     auditLog: row.audit_log || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -85,6 +93,14 @@ export function mapInquiryToRow(inquiry) {
     assigned_to: inquiry.assignedTo || null,
     conversation_gist: inquiry.conversationGist || null,
     screenshot_url: inquiry.screenshotUrl || null,
+    email_subject: inquiry.emailSubject || null,
+    replied_at: inquiry.repliedAt || null,
+    response_tat_minutes: inquiry.responseTatMinutes ?? null,
+    confirmed_at: inquiry.confirmedAt || null,
+    nomination: inquiry.nomination || null,
+    awaiting_since: inquiry.awaitingSince || null,
+    lost_reason: inquiry.lostReason || null,
+    lost_note: inquiry.lostNote || null,
     audit_log: inquiry.auditLog || []
   };
 }
@@ -130,6 +146,26 @@ export async function createInquiryDb(inquiry) {
     return true;
   } catch (err) {
     console.error('Supabase create error:', err);
+    return false;
+  }
+}
+
+// Insert or update by id. Safe to retry, so queued saves use it.
+export async function upsertInquiryDb(inquiry) {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('inquiries')
+      .upsert([mapInquiryToRow(inquiry)], { onConflict: 'id' });
+
+    if (error) {
+      console.error('Supabase upsert error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Supabase upsert error:', err);
     return false;
   }
 }
