@@ -8,8 +8,9 @@ function initials(name) {
   return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
-function toUser({ name, role, email }) {
-  return { name, role, email, avatar: initials(name) };
+// id scopes this rep's data: their database rows and this device's cache.
+function toUser({ id, name, role, email }) {
+  return { id, name, role, email, avatar: initials(name) };
 }
 
 function loadLocalProfile() {
@@ -89,20 +90,20 @@ function SignIn() {
           <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Work email</span>
           <div className="relative">
             <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
-            <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className="scm-input w-full !pl-9" autoComplete="email" />
+            <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className="scm-input scm-input-icon w-full" autoComplete="email" />
           </div>
         </label>
         <label className="block">
           <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Password</span>
           <div className="relative">
             <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
-            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="scm-input w-full !pl-9" autoComplete="current-password" />
+            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="scm-input scm-input-icon w-full" autoComplete="current-password" />
           </div>
         </label>
         <button type="submit" disabled={busy} className="btn-coral w-full justify-center disabled:opacity-50">{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <button onClick={sendLink} disabled={busy} className="btn-dark w-full justify-center disabled:opacity-50">Email me a sign-in link instead</button>
-      <div className="text-[12.5px] text-[#b3a59e]">Accounts are created by your admin. If you forgot your password, use the sign-in link.</div>
+      <div className="text-[12.5px] text-[#b3a59e]">There is no sign-up here: accounts are created by your admin. If you forgot your password, use the sign-in link.</div>
     </Shell>
   );
 }
@@ -170,7 +171,7 @@ export default function AuthGate({ children }) {
     if (!localProfile || editing) {
       return <ProfileSetup initial={localProfile} onSave={saveLocal} note={!localProfile ? 'No database is connected, so there are no logins: everything is saved in this browser only.' : null} />;
     }
-    return children(toUser(localProfile), { onEditProfile: () => setEditing(true), onSignOut: null });
+    return children(toUser({ id: 'local', ...localProfile }), { onEditProfile: () => setEditing(true), onSignOut: null });
   }
 
   if (session === undefined) {
@@ -179,7 +180,7 @@ export default function AuthGate({ children }) {
   if (!session) return <SignIn />;
 
   const meta = session.user.user_metadata || {};
-  const profile = { name: meta.full_name || '', role: meta.role || '', email: session.user.email };
+  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email };
   const saveRemote = async (p) => {
     const { data, error } = await supabase.auth.updateUser({ data: { full_name: p.name, role: p.role } });
     if (error) return error.message;

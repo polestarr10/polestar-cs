@@ -1,38 +1,39 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isSupabaseConfigured, upsertInquiryDb, deleteInquiryDb } from '../lib/supabase';
+import { userKey, readUserItem } from '../utils/userStorage';
 
 const STORE_KEY = 'polestar_pending_sync_v1';
 const RETRY_MS = 60000;
 
-function load() {
+function load(userId) {
   try {
-    const p = JSON.parse(localStorage.getItem(STORE_KEY));
+    const p = JSON.parse(readUserItem(STORE_KEY, userId));
     return { upserts: p?.upserts || [], deletes: p?.deletes || [] };
   } catch {
     return { upserts: [], deletes: [] };
   }
 }
 
-function store(p) {
+function store(userId, p) {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(p));
+    localStorage.setItem(userKey(STORE_KEY, userId), JSON.stringify(p));
   } catch {}
 }
 
 // Saves inquiries to Supabase. A failed save is queued on this device and
 // retried every minute and whenever the connection comes back, so nothing is
 // lost silently. Without Supabase, everything stays in this browser only.
-export default function useDbSync(getInquiry, onSaveFailed) {
-  const [pending, setPending] = useState(load);
+export default function useDbSync(getInquiry, onSaveFailed, userId) {
+  const [pending, setPending] = useState(() => load(userId));
   const [syncing, setSyncing] = useState(false);
   const pendingRef = useRef(pending);
 
   const update = useCallback((fn) => {
     const next = fn(pendingRef.current);
     pendingRef.current = next;
-    store(next);
+    store(userId, next);
     setPending(next);
-  }, []);
+  }, [userId]);
 
   const persist = useCallback(async (inquiry) => {
     if (!isSupabaseConfigured || !inquiry) return;

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   Sparkles, 
   Plus, 
-  FileSpreadsheet, 
   ChevronDown,
   LogOut,
   UserPen
@@ -10,8 +9,6 @@ import {
 
 export default function Header({
   onOpenIntake,
-  onOpenExport,
-  inquiriesCount,
   currentUser,
   onSignOut,
   onEditProfile
@@ -86,22 +83,7 @@ export default function Header({
           )}
         </div>
 
-        {/* 1. Export Excel Button */}
-        <button
-          onClick={onOpenExport}
-          disabled={inquiriesCount === 0}
-          className="btn-dark text-[13.5px] py-1.5 px-3 flex items-center gap-1.5 font-bold disabled:opacity-40 disabled:cursor-not-allowed text-emerald-400 hover:text-emerald-300 border-[#261e1b]"
-        >
-          <FileSpreadsheet size={13} />
-          <span>Export Excel</span>
-          {inquiriesCount > 0 && (
-            <span className="text-[12px] px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/40">
-              {inquiriesCount}
-            </span>
-          )}
-        </button>
-
-        {/* 2. Primary Ingest Button */}
+        {/* Primary Ingest Button */}
         <button
           onClick={onOpenIntake}
           className="btn-coral text-[13.5px] py-1.5 px-4 flex items-center gap-1.5 font-extrabold shadow-[0_0_16px_rgba(255,160,140,0.45)]"

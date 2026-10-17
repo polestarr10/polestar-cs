@@ -19,6 +19,7 @@ export function mapRowToInquiry(row) {
   if (!row) return null;
   return {
     id: row.id,
+    ownerId: row.owner_id,
     receivedAt: row.received_at,
     shipperName: row.shipper_name,
     gstin: row.gstin,
@@ -55,6 +56,7 @@ export function mapRowToInquiry(row) {
     awaitingSince: row.awaiting_since,
     lostReason: row.lost_reason,
     lostNote: row.lost_note,
+    followUps: row.follow_ups || [],
     auditLog: row.audit_log || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -101,6 +103,7 @@ export function mapInquiryToRow(inquiry) {
     awaiting_since: inquiry.awaitingSince || null,
     lost_reason: inquiry.lostReason || null,
     lost_note: inquiry.lostNote || null,
+    follow_ups: inquiry.followUps || [],
     audit_log: inquiry.auditLog || []
   };
 }
@@ -109,13 +112,16 @@ export function mapInquiryToRow(inquiry) {
 // CRUD Operations with Supabase
 // ----------------------------------------------------------------------
 
-export async function fetchInquiriesDb() {
+// Only this rep's own inquiries (managers can read everyone's, but their
+// workspace still shows just their own).
+export async function fetchInquiriesDb(ownerId) {
   if (!supabase) return null;
 
   try {
     const { data, error } = await supabase
       .from('inquiries')
       .select('*')
+      .eq('owner_id', ownerId)
       .order('received_at', { ascending: false });
 
     if (error) {
@@ -151,13 +157,16 @@ export async function createInquiryDb(inquiry) {
 }
 
 // Insert or update by id. Safe to retry, so queued saves use it.
+// Each rep owns their rows (owner_id); the database only lets them touch their own.
 export async function upsertInquiryDb(inquiry) {
   if (!supabase) return false;
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
     const { error } = await supabase
       .from('inquiries')
-      .upsert([mapInquiryToRow(inquiry)], { onConflict: 'id' });
+      .upsert([{ ...mapInquiryToRow(inquiry), owner_id: session.user.id }], { onConflict: 'owner_id,id' });
 
     if (error) {
       console.error('Supabase upsert error:', error.message);

@@ -68,7 +68,7 @@ export default function MetricsBar({
             placeholder="Search inquiries..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="scm-input pl-7 text-[13.5px] py-1 w-full rounded-full"
+            className="scm-input scm-input-icon text-[13.5px] py-1 w-full rounded-full"
           />
           {searchTerm && (
             <button

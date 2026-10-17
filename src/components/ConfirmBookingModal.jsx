@@ -34,6 +34,7 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
       confirmedBy: n.confirmedBy || inquiry.contactPerson || '',
       containerType,
       containerCount: n.containerCount || parseEquipment(containerType).count,
+      volumeCbm: Number(inquiry.volumeCbm) > 0 ? inquiry.volumeCbm : '',
       finalRate: n.finalRate || inquiry.quotedRate || '',
       carrier: n.carrier || inquiry.preferredCarrier || '',
       etd: n.etd || '',
@@ -45,7 +46,7 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
 
   const set = (key) => (e) => setF(prev => ({ ...prev, [key]: e.target.value }));
   const confirmedAt = new Date(f.confirmedAt);
-  const valid = !isNaN(confirmedAt) && f.containerType.trim() && f.finalRate.trim();
+  const valid = !isNaN(confirmedAt) && f.containerType.trim() && f.finalRate.trim() && Number(f.volumeCbm) > 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -59,6 +60,7 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
       repliedAt: inquiry.repliedAt || confirmedAt.toISOString(),
       confirmedAt: confirmedAt.toISOString(),
       containerType: f.containerType.trim(),
+      volumeCbm: Number(f.volumeCbm),
       quotedRate: f.finalRate.trim(),
       preferredCarrier: f.carrier.trim(),
       nomination: {
@@ -126,6 +128,9 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
           <Field label="No. of containers">
             <input type="number" min="0" value={f.containerCount} onChange={set('containerCount')} className="scm-input w-full font-mono font-bold" />
           </Field>
+          <Field label="Volume (CBM)" required>
+            <input type="number" min="0" step="0.01" value={f.volumeCbm} onChange={set('volumeCbm')} className="scm-input w-full font-mono font-bold" placeholder="Counts toward the weekly target" />
+          </Field>
           <Field label="Final rate" required>
             <input value={f.finalRate} onChange={set('finalRate')} className="scm-input w-full font-mono font-bold text-emerald-400" />
           </Field>
@@ -135,7 +140,7 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
           <Field label="Confirmed by (customer)">
             <input value={f.confirmedBy} onChange={set('confirmedBy')} className="scm-input w-full" />
           </Field>
-          <Field label="ETD / cargo ready date">
+          <Field label="ETD / cargo ready date" className="col-span-2">
             <input type="date" value={f.etd} onChange={set('etd')} className="scm-input w-full font-mono" />
           </Field>
           <Field label="Remarks" className="col-span-2">
@@ -148,7 +153,7 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
             {valid ? (
               <span className="text-[#dcd2cd]">Saving marks this inquiry Booking Confirmed and adds it to the nomination sheet.</span>
             ) : (
-              <span className="flex items-center gap-1.5 text-amber-300 font-bold"><AlertTriangle size={15} /> Confirmation date, equipment and final rate are required.</span>
+              <span className="flex items-center gap-1.5 text-amber-300 font-bold"><AlertTriangle size={15} /> Confirmation date, equipment, volume (CBM) and final rate are required.</span>
             )}
           </span>
           <div className="flex items-center gap-2 shrink-0">

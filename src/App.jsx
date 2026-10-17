@@ -12,7 +12,19 @@ import useDbSync from './hooks/useDbSync';
 import ConfirmBookingModal from './components/ConfirmBookingModal';
 import NominationSheet from './components/NominationSheet';
 import AddNominationModal from './components/AddNominationModal';
+import MyDay from './components/MyDay';
+import FollowUps from './components/FollowUps';
+import WeeklyPlan from './components/WeeklyPlan';
+import { fetchPlan, savePlan, deletePlan } from './lib/plans';
+import Sidebar from './components/Sidebar';
+import TeamReport from './components/TeamReport';
+import FollowUpModal from './components/FollowUpModal';
+import useFollowUpAlerts from './hooks/useFollowUpAlerts';
+import { isAwaitingReply } from './hooks/useReplyReminders';
+import { fetchIsManager, syncProfileDb, fetchTargets, saveTargetDb, weekKey } from './lib/team';
+import { cbmProgress, weekRange } from './utils/teamReport';
 import { getNominations, dayKey } from './utils/nominations';
+import { userKey, readUserItem } from './utils/userStorage';
 import { initialInquiries } from './data/mockInquiries';
 import { 
   supabase, 
@@ -28,7 +40,7 @@ const STORAGE_KEY = 'polestar_cs_inquiries_live_clean_v1';
 export default function App({ currentUser, onSignOut, onEditProfile }) {
   const [inquiries, setInquiries] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = readUserItem(STORAGE_KEY, currentUser.id);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error("Failed to load inquiries from localStorage", e);
@@ -49,9 +61,16 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
   const [quoteInquiryTarget, setQuoteInquiryTarget] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [addNominationOpen, setAddNominationOpen] = useState(false);
-  const [view, setView] = useState('inquiries');
+  const [followUpTarget, setFollowUpTarget] = useState(null);
+  const [view, setView] = useState('myday');
+  const [isManager, setIsManager] = useState(false);
+  const [targets, setTargets] = useState([]);
+  const [plans, setPlans] = useState({}); // weekStart -> plan, null = none, missing = not loaded
 
   const { now, dueInquiries, dismissAll, dismissOne } = useReplyReminders(inquiries);
+  const followUps = useFollowUpAlerts(inquiries, now, currentUser.id);
+  const progress = useMemo(() => cbmProgress(inquiries, targets, currentUser.id, weekRange(now)), [inquiries, targets, currentUser.id, now]);
+  const myDayCount = inquiries.filter(isAwaitingReply).length + followUps.due.length + followUps.cold.length;
   const todaysNominations = useMemo(
     () => getNominations(inquiries).filter(n => dayKey(n.confirmedAt) === dayKey(now)).length,
     [inquiries, now]
@@ -72,14 +91,14 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
     setToast({ message: "Couldn't save to the database. Kept on this device and will retry.", type: 'error' });
     setTimeout(() => setToast(null), 5000);
   }, []);
-  const { pendingCount, pendingRef, syncing, persist, persistDelete, flush } = useDbSync(getInquiry, onSaveFailed);
+  const { pendingCount, pendingRef, syncing, persist, persistDelete, flush } = useDbSync(getInquiry, onSaveFailed, currentUser.id);
 
   // 1. Initial Load from Supabase Live DB
   useEffect(() => {
     async function loadLiveData() {
       if (isSupabaseConfigured) {
         setDbLoading(true);
-        const liveData = await fetchInquiriesDb();
+        const liveData = await fetchInquiriesDb(currentUser.id);
         if (liveData !== null) {
           const { upserts, deletes } = pendingRef.current;
           setInquiries(prev => {
@@ -108,6 +127,9 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'inquiries' },
         (payload) => {
+          // Managers can read every rep's rows; this workspace shows only the rep's own.
+          const ownerId = (payload.new && payload.new.owner_id) || payload.old?.owner_id;
+          if (ownerId && ownerId !== currentUser.id) return;
           if (payload.eventType === 'INSERT') {
             const newInq = mapRowToInquiry(payload.new);
             setInquiries(prev => {
@@ -130,10 +152,52 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
     };
   }, []);
 
+  // Weekly plans from the VP. A ref keeps quick successive ticks from overwriting each other.
+  const plansRef = useRef(plans);
+  const setPlanState = (weekStart, plan) => {
+    plansRef.current = { ...plansRef.current, [weekStart]: plan };
+    setPlans(plansRef.current);
+  };
+  const loadPlan = useCallback(async (weekStart) => {
+    const plan = await fetchPlan(currentUser.id, weekStart);
+    setPlanState(weekStart, plan);
+    return plan;
+  }, [currentUser.id]);
+  const handleSavePlan = async (plan) => {
+    setPlanState(plan.weekStart, plan);
+    const err = await savePlan(currentUser.id, plan);
+    if (err) showToast(`Plan kept on this device; couldn't save to the database (${err})`, 'error');
+  };
+  const handleChangePlan = (weekStart, fn) => {
+    const current = plansRef.current[weekStart];
+    if (current) handleSavePlan(fn(current));
+  };
+  const handleDeletePlan = async (weekStart) => {
+    setPlanState(weekStart, null);
+    const err = await deletePlan(currentUser.id, weekStart);
+    if (err) showToast(`Couldn't remove the plan from the database (${err})`, 'error');
+  };
+  const currentWeek = weekKey(new Date(now));
+  const thisWeekPlan = plans[currentWeek];
+  const todayPlanLeft = (() => {
+    const d = thisWeekPlan?.days.find(x => x.date === dayKey(new Date(now)));
+    return d ? d.items.filter(i => !i.done).length : 0;
+  })();
+  useEffect(() => { if (!(currentWeek in plansRef.current)) loadPlan(currentWeek); }, [currentWeek, loadPlan]);
+
+  // Profile (so managers see the rep's name), manager access, weekly targets.
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      syncProfileDb(currentUser);
+      fetchIsManager().then(setIsManager);
+    }
+    fetchTargets(currentUser.id).then(setTargets);
+  }, [currentUser.id, currentUser.name, currentUser.role]);
+
   // 3. LocalStorage persistence cache
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(inquiries));
+      localStorage.setItem(userKey(STORAGE_KEY, currentUser.id), JSON.stringify(inquiries));
     } catch (e) {
       console.error("Failed to save inquiries to localStorage", e);
       if (!isSupabaseConfigured) {
@@ -300,6 +364,33 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
     }
   };
 
+  const handleCloseLost = (inquiry) => {
+    if (!window.confirm(`Close ${inquiry.id} (${inquiry.shipperName}) as lost: no response from the customer?`)) return;
+    handleUpdateInquiry({
+      ...inquiry,
+      status: 'CLOSED_LOST',
+      lostReason: 'No response from customer',
+      auditLog: [...(inquiry.auditLog || []), {
+        timestamp: new Date().toISOString(),
+        action: `Closed as lost: no response after ${(inquiry.followUps || []).length} follow-ups`,
+        by: currentUser.name
+      }]
+    }, `${inquiry.id} closed as lost`);
+  };
+
+  // For now each rep sets their own target after agreeing it with the VP in person.
+  const canEditTarget = true;
+  const handleSetTarget = async (cbm, week = weekKey(new Date())) => {
+    const err = await saveTargetDb(currentUser.id, week, cbm, currentUser.name);
+    if (err) {
+      showToast(`Couldn't save the target: ${err}`, 'error');
+      return false;
+    }
+    setTargets(prev => [...prev.filter(t => !(t.repId === currentUser.id && t.weekStart === week)), { repId: currentUser.id, weekStart: week, targetCbm: cbm, setBy: currentUser.name }]);
+    showToast(`Weekly target set to ${cbm} CBM (week of ${new Date(`${week}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })})`, "success");
+    return true;
+  };
+
   const handleViewDetails = (item) => {
     setSelectedInquiry(item);
     setDetailModalOpen(true);
@@ -340,21 +431,31 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080605] text-[#f5f5f5] antialiased font-sans">
+    <div className="h-screen flex flex-col bg-[#080605] text-[#f5f5f5] antialiased font-sans">
       
       {/* Top Header */}
       <Header
         onOpenIntake={() => setIntakeModalOpen(true)}
-        onOpenExport={() => setExportModalOpen(true)}
-        inquiriesCount={inquiries.length}
         currentUser={currentUser}
         onSignOut={onSignOut}
         onEditProfile={onEditProfile}
-        isLiveDb={isSupabaseConfigured}
+      />
+
+      <div className="flex-1 flex min-h-0">
+      <Sidebar
+        view={view}
+        setView={setView}
+        counts={{ myday: myDayCount, plan: todayPlanLeft, followups: followUps.due.length + followUps.cold.length, inquiries: inquiries.length, nominations: todaysNominations }}
+        isManager={isManager}
+        inquiriesCount={inquiries.length}
+        onExport={() => setExportModalOpen(true)}
+        onBackup={handleBackup}
+        onRestore={handleRestore}
       />
 
       {/* Main High-Density Workspace */}
-      <main className="flex-1 px-4 py-3 space-y-3 max-w-7xl w-full mx-auto">
+      <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
+      <main className="px-4 py-3 space-y-3 max-w-7xl w-full mx-auto">
         
         {pendingCount > 0 && (
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)]">
@@ -369,28 +470,49 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
           </div>
         )}
 
-        {/* View switch */}
-        <div className="flex items-center gap-2 border-b border-[#342b27]">
-          {[
-            { key: 'inquiries', label: 'Inquiries', count: inquiries.length },
-            { key: 'nominations', label: 'Nomination Sheet', count: todaysNominations, countLabel: 'today' },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setView(tab.key)}
-              className={`pb-2 px-3 text-[15px] font-extrabold border-b-2 transition-all flex items-center gap-2 ${
-                view === tab.key ? 'border-[#FFA08C] text-[#FFA08C]' : 'border-transparent text-[#b3a59e] hover:text-white'
-              }`}
-            >
-              {tab.label}
-              <span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-[#181412] text-[#dcd2cd]">
-                {tab.count}{tab.countLabel ? ` ${tab.countLabel}` : ''}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {view === 'inquiries' ? (
+        {view === 'myday' ? (
+          <MyDay
+            inquiries={inquiries}
+            now={now}
+            followUps={followUps}
+            progress={progress}
+            canEditTarget={canEditTarget}
+            onSetTarget={handleSetTarget}
+            onReply={handleOpenQuickQuote}
+            onFollowUp={setFollowUpTarget}
+            onConfirm={(inq) => setConfirmTarget(inq)}
+            onCloseLost={handleCloseLost}
+            onViewDetails={handleViewDetails}
+            plan={thisWeekPlan}
+            onChangePlan={handleChangePlan}
+            onOpenPlan={() => setView('plan')}
+          />
+        ) : view === 'plan' ? (
+          <WeeklyPlan
+            plans={plans}
+            loadPlan={loadPlan}
+            onSavePlan={handleSavePlan}
+            onChangePlan={handleChangePlan}
+            onDeletePlan={handleDeletePlan}
+            now={now}
+            notify={(msg) => showToast(msg, 'success')}
+            inquiries={inquiries}
+            targets={targets}
+            currentUser={currentUser}
+            onSetTarget={handleSetTarget}
+          />
+        ) : view === 'followups' ? (
+          <FollowUps
+            inquiries={inquiries}
+            now={now}
+            followUps={followUps}
+            onFollowUp={setFollowUpTarget}
+            onCloseLost={handleCloseLost}
+            onViewDetails={handleViewDetails}
+          />
+        ) : view === 'team' && isManager ? (
+          <TeamReport currentUser={currentUser} now={now} />
+        ) : view === 'inquiries' ? (
           <>
             {/* Simple Control & KPI Strip */}
             <MetricsBar
@@ -425,19 +547,8 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
         )}
 
       </main>
-
-      {/* Footer */}
-      <footer className="px-4 py-2 border-t border-[#342b27] bg-[#080605] flex items-center justify-between text-[12.5px] text-slate-500 max-w-7xl w-full mx-auto">
-        <div>POLESTAR SHIPPING • CUSTOMER SERVICE LIVE INQUIRY PORTAL</div>
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500">{isSupabaseConfigured ? 'Saved to database' : 'Saved in this browser only'}</span>
-          <button onClick={handleBackup} className="btn-dark text-[12.5px]">Back up data</button>
-          <label className="btn-dark text-[12.5px] cursor-pointer">
-            Restore backup
-            <input type="file" accept="application/json,.json" className="hidden" onChange={handleRestore} />
-          </label>
-        </div>
-      </footer>
+      </div>
+      </div>
 
       {/* MODALS */}
       <EmailIntakeModal
@@ -491,8 +602,17 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
         currentUser={currentUser}
       />
 
+      <FollowUpModal
+        isOpen={Boolean(followUpTarget)}
+        onClose={() => setFollowUpTarget(null)}
+        inquiry={followUpTarget}
+        onMarkSent={handleUpdateInquiry}
+        onCloseLost={handleCloseLost}
+        currentUser={currentUser}
+      />
+
       {/* 30-minute unreplied inquiry reminders */}
-      {!quickQuoteModalOpen && !intakeModalOpen && !confirmTarget && !addNominationOpen && (
+      {!quickQuoteModalOpen && !intakeModalOpen && !confirmTarget && !addNominationOpen && !followUpTarget && (
         <ReplyReminderPopup
           inquiries={dueInquiries}
           now={now}

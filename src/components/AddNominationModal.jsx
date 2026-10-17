@@ -38,7 +38,7 @@ export default function AddNominationModal({ isOpen, onClose, inquiries, onConve
         <div className="px-5 py-3 border-b border-[#342b27] flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-md">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
-            <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search shipper, ref, port, commodity…" className="scm-input !pl-8 w-full" />
+            <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search shipper, ref, port, commodity…" className="scm-input scm-input-icon w-full" />
           </div>
           {onPasteEmail && (
             <button onClick={onPasteEmail} className="btn-dark">

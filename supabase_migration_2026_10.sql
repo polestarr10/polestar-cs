@@ -3,6 +3,9 @@
 -- Run once in Supabase: Dashboard > SQL Editor > New query > paste > Run.
 -- Safe to run more than once.
 --
+-- NOTE: after this, run supabase_migration_2026_10_private.sql so each rep only
+-- sees their own data. Re-running this file alone re-opens data to all reps.
+--
 -- ORDER MATTERS:
 --   1. Deploy the new app version first (it has the sign-in screen).
 --   2. Create the reps' accounts (Authentication > Users > Add user).

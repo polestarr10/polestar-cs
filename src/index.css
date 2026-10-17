@@ -311,6 +311,11 @@ body {
   outline: none !important;
 }
 
+/* Inputs with a leading icon: .scm-input's !important padding beats Tailwind's !pl-9. */
+.scm-input.scm-input-icon {
+  padding-left: 2.25rem !important;
+}
+
 .scm-input:focus {
   border-color: #FFA08C !important;
   box-shadow: 0 0 8px rgba(255, 160, 140, 0.3) !important;

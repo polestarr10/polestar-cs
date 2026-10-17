@@ -1,11 +1,13 @@
 -- ==============================================================================
 -- POLESTAR CS LIVE INQUIRY PORTAL - SUPABASE DATABASE SCHEMA
 -- Run this in your Supabase SQL Editor (Dashboard > SQL Editor > New Query)
+-- Then run supabase_migration_2026_10_team.sql (managers, profiles, weekly targets).
 -- ==============================================================================
 
 -- 1. Create Inquiries Table
 CREATE TABLE IF NOT EXISTS public.inquiries (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
+    owner_id UUID NOT NULL DEFAULT auth.uid(), -- the CS rep who owns this inquiry
     received_at TIMESTAMPTZ DEFAULT NOW(),
     shipper_name TEXT NOT NULL,
     gstin TEXT,
@@ -42,9 +44,11 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     awaiting_since TIMESTAMPTZ,
     lost_reason TEXT,
     lost_note TEXT,
+    follow_ups JSONB DEFAULT '[]'::jsonb,
     audit_log JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (owner_id, id)
 );
 
 -- 1b. Migration for existing databases (reply workflow + nomination sheet columns)
@@ -63,30 +67,30 @@ CREATE INDEX IF NOT EXISTS idx_inquiries_status ON public.inquiries(status);
 CREATE INDEX IF NOT EXISTS idx_inquiries_received_at ON public.inquiries(received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_inquiries_shipper ON public.inquiries(shipper_name);
 
--- 3. Row Level Security: only signed-in CS reps can see or change inquiries.
--- (Existing databases: run supabase_migration_2026_10.sql, which swaps the old open policies for these.)
+-- 3. Row Level Security: each CS rep can only see or change their own inquiries.
+-- (Existing databases: run supabase_migration_2026_10.sql, then supabase_migration_2026_10_private.sql.)
 ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Signed-in reps can read inquiries"
+CREATE POLICY "Reps read their own inquiries"
 ON public.inquiries FOR SELECT
 TO authenticated
-USING (true);
+USING (owner_id = auth.uid());
 
-CREATE POLICY "Signed-in reps can add inquiries"
+CREATE POLICY "Reps add their own inquiries"
 ON public.inquiries FOR INSERT
 TO authenticated
-WITH CHECK (true);
+WITH CHECK (owner_id = auth.uid());
 
-CREATE POLICY "Signed-in reps can update inquiries"
+CREATE POLICY "Reps update their own inquiries"
 ON public.inquiries FOR UPDATE
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (owner_id = auth.uid())
+WITH CHECK (owner_id = auth.uid());
 
-CREATE POLICY "Signed-in reps can delete inquiries"
+CREATE POLICY "Reps delete their own inquiries"
 ON public.inquiries FOR DELETE
 TO authenticated
-USING (true);
+USING (owner_id = auth.uid());
 
 -- 4. Automatic updated_at Trigger
 CREATE OR REPLACE FUNCTION update_updated_at_column()

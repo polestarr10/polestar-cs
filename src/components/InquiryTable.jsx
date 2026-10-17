@@ -9,6 +9,17 @@ import {
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { isAwaitingReply, minutesWaiting, formatWaiting, REMINDER_INTERVAL_MIN } from '../hooks/useReplyReminders';
+import { followUpState, quoteExpiry, formatExpiry, MAX_FOLLOW_UPS } from '../utils/followUps';
+
+// Small note under the rate when the customer has gone quiet or the quote is running out.
+function QuoteHint({ item, now }) {
+  const fu = followUpState(item, now);
+  const exp = quoteExpiry(item, now);
+  if (fu?.stage === 'due') return <div className="text-[12px] font-bold text-[#c084fc]">Follow-up {fu.number}/{MAX_FOLLOW_UPS} due</div>;
+  if (fu?.stage === 'cold') return <div className="text-[12px] font-bold text-[#f87171]">No reply after {MAX_FOLLOW_UPS} follow-ups</div>;
+  if (exp) return <div className={`text-[12px] font-bold ${exp.expired ? 'text-[#f87171]' : 'text-amber-300'}`}>Quote {formatExpiry(exp)}</div>;
+  return null;
+}
 
 export default function InquiryTable({ 
   inquiries, 
@@ -148,9 +159,12 @@ export default function InquiryTable({
                   {/* Col 8: QUOTED RATE */}
                   <td>
                     {item.quotedRate ? (
-                      <span className="font-mono font-bold text-emerald-400">
-                        {item.quotedRate}
-                      </span>
+                      <>
+                        <span className="font-mono font-bold text-emerald-400">
+                          {item.quotedRate}
+                        </span>
+                        <QuoteHint item={item} now={now} />
+                      </>
                     ) : isAwaitingReply(item) ? (() => {
                       const waited = minutesWaiting(item, now);
                       const overdue = waited >= REMINDER_INTERVAL_MIN;

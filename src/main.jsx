@@ -9,7 +9,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthGate>
-        {(user, actions) => <App currentUser={user} {...actions} />}
+        {(user, actions) => <App key={user.id} currentUser={user} {...actions} />}
       </AuthGate>
     </ErrorBoundary>
   </React.StrictMode>,

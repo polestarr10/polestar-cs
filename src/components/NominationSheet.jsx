@@ -98,7 +98,7 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sheet…" className="scm-input !pl-8 w-56" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sheet…" className="scm-input scm-input-icon w-56" />
           </div>
           <button onClick={() => exportNominationReport(nominations, range, currentUser?.name)} className="btn-coral">
             <FileSpreadsheet size={14} />
