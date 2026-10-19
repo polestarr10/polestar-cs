@@ -57,6 +57,15 @@ export function mapRowToInquiry(row) {
     lostReason: row.lost_reason,
     lostNote: row.lost_note,
     followUps: row.follow_ups || [],
+    direction: row.direction || '',
+    packages: row.packages || '',
+    hsnCode: row.hsn_code || '',
+    dimensions: row.dimensions || '',
+    pickupAddress: row.pickup_address || '',
+    cargoReadyDate: row.cargo_ready_date || '',
+    specialRequirements: row.special_requirements || '',
+    urgency: row.urgency || 'NORMAL',
+    rawEmailSnippet: row.raw_email_snippet || '',
     auditLog: row.audit_log || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -104,6 +113,15 @@ export function mapInquiryToRow(inquiry) {
     lost_reason: inquiry.lostReason || null,
     lost_note: inquiry.lostNote || null,
     follow_ups: inquiry.followUps || [],
+    direction: inquiry.direction || null,
+    packages: inquiry.packages || null,
+    hsn_code: inquiry.hsnCode || null,
+    dimensions: inquiry.dimensions || null,
+    pickup_address: inquiry.pickupAddress || null,
+    cargo_ready_date: inquiry.cargoReadyDate || null,
+    special_requirements: inquiry.specialRequirements || null,
+    urgency: inquiry.urgency || 'NORMAL',
+    raw_email_snippet: inquiry.rawEmailSnippet || null,
     audit_log: inquiry.auditLog || []
   };
 }

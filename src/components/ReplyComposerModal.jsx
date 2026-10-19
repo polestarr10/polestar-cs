@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
   initialDraftFields,
   getMissingFields,
   buildReplySubject,
   buildReplyBody,
-  buildComposeLink,
   formatRate,
+  findPlaceholders,
 } from '../utils/replyDraft';
+import { quoteRound } from '../utils/followUps';
 
 const CHANNEL_LABELS = { mailto: 'email app', gmail: 'Gmail', outlook: 'Outlook', manual: 'reply in mail client' };
 
@@ -49,13 +50,18 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
   const body = bodyOverride ?? generated.body;
   const missing = getMissingFields(f);
   const missingKeys = new Set(missing.map(m => m.key));
-  const canSend = missing.length === 0;
+  const placeholders = findPlaceholders(`${subject}\n${body}`);
+  // Nothing can be copied, opened or marked replied until the required details
+  // are in and no [PLACEHOLDER] is left in the text.
+  const canSend = missing.length === 0 && placeholders.length === 0;
 
   const set = (key) => (e) => setF(prev => ({ ...prev, [key]: e.target.value }));
 
   const markReplied = (channel) => {
     const now = new Date();
     const rate = formatRate(f.currency, f.rateAmount, f.rateUnit);
+    const revised = Boolean(inquiry.isQuoted);
+    const round = quoteRound(inquiry) + 1;
     const received = Date.parse(inquiry.awaitingSince || inquiry.receivedAt);
     const updated = {
       ...inquiry,
@@ -79,14 +85,18 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
       quoteValidity: f.validity,
       isQuoted: true,
       hasReplied: true,
-      status: 'QUOTED_REPLIED',
+      status: revised ? 'NEGOTIATING' : 'QUOTED_REPLIED',
       repliedAt: now.toISOString(),
       responseTatMinutes: isNaN(received) ? null : Math.max(0, Math.round((now - received) / 60000)),
       assignedTo: currentUser?.name ? `${currentUser.name} (${currentUser.role || 'CS Desk'})` : inquiry.assignedTo,
-      conversationGist: `Polestar CS replied with ${rate}${f.carrier ? ` on ${f.carrier}` : ''}, valid until ${f.validity}.`,
+      conversationGist: `Polestar CS ${revised ? `sent a revised quote (round ${round})` : 'replied'} with ${rate}${f.carrier ? ` on ${f.carrier}` : ''}, valid until ${f.validity}.`,
       auditLog: [
         ...(inquiry.auditLog || []),
-        { timestamp: now.toISOString(), action: `Quotation reply sent via ${CHANNEL_LABELS[channel]} (${rate})`, by: currentUser?.name || 'CS Desk' },
+        {
+          timestamp: now.toISOString(),
+          action: revised ? `Revised quotation sent, round ${round} (${rate})` : `Quotation reply sent via ${CHANNEL_LABELS[channel]} (${rate})`,
+          by: currentUser?.name || 'CS Desk',
+        },
       ],
     };
 
@@ -98,19 +108,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
     onClose();
   };
 
-  const handleSend = (channel) => {
-    if (!canSend) return;
-    const link = buildComposeLink(channel, { to: f.contactEmail.trim(), subject, body });
-    // Open the compose window inside the click so the browser doesn't block it.
-    if (channel === 'mailto') {
-      window.location.href = link;
-    } else {
-      window.open(link, '_blank', 'noopener');
-    }
-    markReplied(channel);
-  };
-
   const handleCopy = () => {
+    if (!canSend) return;
     // Body only: the rep pastes it into a Reply on the customer's original email.
     navigator.clipboard.writeText(body);
     setCopied(true);
@@ -234,17 +233,31 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
             <div className="text-sm text-[#dcd2cd]">
               To: <span className="font-mono font-bold text-white">{f.contactEmail || '—'}</span>
             </div>
-            <input
-              value={subject}
-              onChange={(e) => setSubjectOverride(e.target.value)}
-              className="scm-input w-full font-bold"
-            />
-            <textarea
-              value={body}
-              onChange={(e) => setBodyOverride(e.target.value)}
-              className="scm-input w-full flex-1 min-h-[360px] font-mono leading-relaxed"
-              spellCheck={false}
-            />
+            {missing.length > 0 ? (
+              <div className="relative flex-1 min-h-[400px] rounded-lg border border-amber-400/50 overflow-hidden">
+                <pre aria-hidden="true" className="absolute inset-0 p-3 text-[13px] font-mono text-slate-400 whitespace-pre-wrap blur-[3px] select-none pointer-events-none opacity-50">{body}</pre>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center bg-[#0d0b0a]/70">
+                  <Lock size={22} className="text-amber-300" />
+                  <div className="font-extrabold text-white">Reply locked until the details are filled in</div>
+                  <div className="text-sm text-amber-300 font-bold">Fill in: {missing.map(m => m.label).join(', ')}</div>
+                  <div className="text-[12.5px] text-[#b3a59e]">Use the fields on the left. The reply unlocks by itself once they're all filled.</div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <input
+                  value={subject}
+                  onChange={(e) => setSubjectOverride(e.target.value)}
+                  className="scm-input w-full font-bold"
+                />
+                <textarea
+                  value={body}
+                  onChange={(e) => setBodyOverride(e.target.value)}
+                  className="scm-input w-full flex-1 min-h-[360px] font-mono leading-relaxed"
+                  spellCheck={false}
+                />
+              </>
+            )}
             {bodyOverride !== null && (
               <div className="text-[12.5px] text-[#b3a59e]">
                 You've edited the draft by hand, so changes to the details on the left won't update it until you rebuild it.
@@ -262,21 +275,15 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-amber-300 font-bold">
-                <AlertTriangle size={15} /> Fill in: {missing.map(m => m.label).join(', ')}
+                <AlertTriangle size={15} />
+                {missing.length > 0
+                  ? `Fill in: ${missing.map(m => m.label).join(', ')}`
+                  : `Replace ${placeholders.join(', ')} in the reply before sending.`}
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleSend('mailto')}
-              disabled={!canSend}
-              className="btn-dark disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Opens a new email (not in the customer's thread) and marks this inquiry replied"
-            >
-              <Mail size={13} />
-              <span>New email</span>
-            </button>
             <button onClick={handleCopy} disabled={!canSend} className="btn-coral-outline disabled:opacity-40 disabled:cursor-not-allowed">
               {copied ? <Check size={13} /> : <Copy size={13} />}
               <span>{copied ? 'Copied!' : '1. Copy reply'}</span>

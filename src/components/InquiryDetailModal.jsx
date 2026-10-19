@@ -13,7 +13,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
-import { initialDraftFields, buildReplySubject, buildReplyBody } from '../utils/replyDraft';
+import { initialDraftFields, buildReplySubject, buildReplyBody, getMissingFields } from '../utils/replyDraft';
 
 export default function InquiryDetailModal({ 
   isOpen, 
@@ -55,7 +55,11 @@ export default function InquiryDetailModal({
 
 ${buildReplyBody(formData, draftFields)}`;
 
+  // A quotation with blanks (no rate, no customer email…) must not be copied.
+  const quoteMissing = getMissingFields(draftFields);
+
   const handleCopyEmail = () => {
+    if (quoteMissing.length) return;
     navigator.clipboard.writeText(quoteEmailBody);
     setCopiedQuote(true);
     setTimeout(() => setCopiedQuote(false), 2000);
@@ -255,6 +259,43 @@ ${buildReplyBody(formData, draftFields)}`;
 
               </div>
 
+              {/* Cargo & pickup */}
+              <div className="p-3 rounded-xl bg-[#120f0e] border border-[#3a302b] space-y-2">
+                <div className="text-[12.5px] font-extrabold text-[#FFA08C] uppercase tracking-wider border-b border-[#3a302b] pb-1">
+                  4. Cargo & Pickup
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
+                  <div>
+                    <label className="text-[12.5px] text-[#b3a59e] block">Import / Export</label>
+                    <select value={formData.direction || ''} onChange={(e) => handleFieldChange('direction', e.target.value)} className="scm-select text-sm w-full">
+                      <option value="">Not set</option>
+                      <option value="Import">Import</option>
+                      <option value="Export">Export</option>
+                    </select>
+                  </div>
+                  {[['packages', 'Packages', 'e.g. 100 boxes'], ['hsnCode', 'HSN Code', ''], ['dimensions', 'Dimensions', 'L x W x H'], ['incoterms', 'Incoterms', 'e.g. EXW']].map(([key, labelText, ph]) => (
+                    <div key={key}>
+                      <label className="text-[12.5px] text-[#b3a59e] block">{labelText}</label>
+                      <input type="text" value={formData[key] || ''} placeholder={ph} onChange={(e) => handleFieldChange(key, e.target.value)} className="scm-input text-sm w-full" />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5">
+                  <div className="md:col-span-2">
+                    <label className="text-[12.5px] text-[#b3a59e] block">Pickup Address</label>
+                    <input type="text" value={formData.pickupAddress || ''} onChange={(e) => handleFieldChange('pickupAddress', e.target.value)} className="scm-input text-sm w-full" />
+                  </div>
+                  <div>
+                    <label className="text-[12.5px] text-[#b3a59e] block">Cargo Ready</label>
+                    <input type="text" value={formData.cargoReadyDate || ''} onChange={(e) => handleFieldChange('cargoReadyDate', e.target.value)} className="scm-input text-sm w-full" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[12.5px] text-[#b3a59e] block">Special Requirements</label>
+                  <input type="text" value={formData.specialRequirements || ''} onChange={(e) => handleFieldChange('specialRequirements', e.target.value)} className="scm-input text-sm w-full" />
+                </div>
+              </div>
+
               {/* Follow-up Notes */}
               <div>
                 <label className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Follow-up Notes / Gist:</label>
@@ -294,7 +335,9 @@ ${buildReplyBody(formData, draftFields)}`;
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopyEmail}
-                    className="btn-dark text-[13px] py-1 px-3.5"
+                    disabled={quoteMissing.length > 0}
+                    title={quoteMissing.length ? 'Fill in the missing details in Reply & Quote first' : undefined}
+                    className="btn-dark text-[13px] py-1 px-3.5 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {copiedQuote ? <Check size={11} /> : <Copy size={11} />}
                     <span>{copiedQuote ? 'Copied!' : 'Copy Email Text'}</span>
@@ -311,9 +354,17 @@ ${buildReplyBody(formData, draftFields)}`;
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#090706] border border-[#3a302b] font-mono text-[13.5px] text-slate-300 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
-                {quoteEmailBody}
-              </div>
+              {quoteMissing.length > 0 ? (
+                <div className="p-4 rounded-xl border border-amber-400/50 bg-[rgba(251,191,36,0.06)] text-center space-y-1.5">
+                  <div className="font-extrabold text-white">The quotation isn't ready to copy yet</div>
+                  <div className="text-sm text-amber-300 font-bold">Missing: {quoteMissing.map(m => m.label).join(', ')}</div>
+                  <div className="text-[12.5px] text-[#b3a59e]">Click "Open Reply & Quote", fill these in, and the reply unlocks there.</div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-[#090706] border border-[#3a302b] font-mono text-[13.5px] text-slate-300 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  {quoteEmailBody}
+                </div>
+              )}
             </div>
           )}
 

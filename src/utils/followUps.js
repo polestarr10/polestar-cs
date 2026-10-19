@@ -64,6 +64,11 @@ export function formatExpiry({ daysLeft, expired }) {
   return `expires in ${daysLeft} days`;
 }
 
+// 1 = first quote, 2 = first revised quote, …
+export function quoteRound(inquiry) {
+  return (inquiry.auditLog || []).filter(e => /Quotation reply sent|Revised quotation sent/i.test(e.action || '')).length;
+}
+
 export function formatQuiet(hours) {
   const h = Math.floor(hours);
   return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d ${h % 24}h`;

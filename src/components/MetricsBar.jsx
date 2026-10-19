@@ -56,7 +56,8 @@ export default function MetricsBar({
         >
           <option value="ALL">All Inquiries ({total})</option>
           <option value="INQUIRY_RECEIVED">Pending CS Action ({pendingCount})</option>
-          <option value="QUOTED_REPLIED">Quoted & Replied ({quotedCount})</option>
+          <option value="QUOTED_REPLIED">Quoted & Replied ({inquiries.filter(i => i.status === 'QUOTED_REPLIED').length})</option>
+          <option value="NEGOTIATING">In Negotiation ({inquiries.filter(i => i.status === 'NEGOTIATING').length})</option>
           <option value="BOOKING_WON">Booking Won</option>
         </select>
 

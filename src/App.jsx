@@ -406,7 +406,9 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
   const handleSaveQuote = async (updatedItem) => {
     setInquiries(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
     if (selectedInquiry?.id === updatedItem.id) setSelectedInquiry(updatedItem);
-    showToast(`Reply sent – ${updatedItem.id} marked Quoted & Replied`, 'success');
+    showToast(updatedItem.status === 'NEGOTIATING'
+      ? `Revised quote sent – ${updatedItem.id} is In Negotiation`
+      : `Reply sent – ${updatedItem.id} marked Quoted & Replied`, 'success');
 
     // Sync to Supabase Database
     persist(updatedItem);

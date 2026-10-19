@@ -19,6 +19,13 @@ export function cleanEmail(email) {
   return PLACEHOLDER_EMAILS.includes(e.toLowerCase()) ? '' : e;
 }
 
+// "[RATE]", "[REVISED RATE]", "[FREE DAYS]": blanks a draft leaves for the rep to fill in.
+const PLACEHOLDER_RE = /\[[A-Z][A-Z0-9 &/'-]{1,40}\]/g;
+
+export function findPlaceholders(text) {
+  return [...new Set((text || '').match(PLACEHOLDER_RE) || [])];
+}
+
 export function getMissingFields(draft) {
   return REQUIRED_REPLY_FIELDS.filter(({ key }) => {
     const v = draft[key];
@@ -64,6 +71,10 @@ export function initialDraftFields(inquiry) {
     grossWeightKg: inquiry.grossWeightKg || '',
     volumeCbm: inquiry.volumeCbm || '',
     incoterms: inquiry.incoterms || '',
+    packages: inquiry.packages || '',
+    dimensions: inquiry.dimensions || '',
+    hsnCode: inquiry.hsnCode || '',
+    pickupAddress: inquiry.pickupAddress || '',
     currency: inquiry.quotedCurrency || 'USD',
     rateAmount: inquiry.isQuoted && inquiry.quotedAmountTotal ? String(inquiry.quotedAmountTotal) : '',
     rateUnit: defaultRateUnit(inquiry),
@@ -114,7 +125,11 @@ export function buildReplyBody(inquiry, f, currentUser) {
     line('Commodity', f.commodity || '—'),
     line('Gross weight', formatWeight(f.grossWeightKg)),
     Number(f.volumeCbm) > 0 && line('Volume', `${Number(f.volumeCbm).toLocaleString()} CBM`),
+    f.packages && line('Packages', f.packages),
+    f.dimensions && line('Dimensions', f.dimensions),
+    f.hsnCode && line('HSN code', f.hsnCode),
     f.incoterms && line('Incoterms', f.incoterms),
+    f.pickupAddress && line('Pickup from', f.pickupAddress),
   ].filter(Boolean);
 
   const quote = [

@@ -44,12 +44,8 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
   }, [isOpen, currentUser]);
 
   const range = periodFor(period);
-  const list = useMemo(() => inquiries.filter(i => {
-    if (!range.from) return true;
-    const t = new Date(i.receivedAt).getTime();
-    return t >= range.from.getTime() && t < range.to.getTime();
-  }), [inquiries, range.from?.getTime(), range.to?.getTime()]);
-  const m = reportMetrics(list);
+  const window_ = range.from ? { from: range.from, to: range.to } : null;
+  const m = useMemo(() => reportMetrics(inquiries, window_), [inquiries, range.from?.getTime(), range.to?.getTime()]);
 
   if (!isOpen) return null;
 
@@ -57,9 +53,9 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
     try {
       localStorage.setItem(PREFS_KEY, JSON.stringify({ recipient, branch }));
     } catch {}
-    const opts = { periodLabel: range.label, fileStamp: range.stamp, preparedBy, recipient, branch };
-    if (exportFormat === 'xlsx') exportInquiriesToExcel(list, opts);
-    else exportColorCodedHtmlExcel(list, opts);
+    const opts = { periodLabel: range.label, fileStamp: range.stamp, preparedBy, recipient, branch, range: window_ };
+    if (exportFormat === 'xlsx') exportInquiriesToExcel(inquiries, opts);
+    else exportColorCodedHtmlExcel(inquiries, opts);
     setDone(true);
     setTimeout(onClose, 1200);
   };
@@ -93,10 +89,10 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
 
           <div className="grid grid-cols-4 gap-2 p-3 rounded-xl bg-[#120f0e] border border-[#3a302b] text-center">
             {[
-              ['Received', m.total, 'text-white'],
-              ['Replied', m.replied, 'text-emerald-400'],
-              ['Awaiting reply', m.awaiting, m.awaiting ? 'text-[#FFA08C]' : 'text-white'],
-              ['Confirmed', m.won, 'text-emerald-300'],
+              ['New inquiries', m.total, 'text-white'],
+              ['Quotes sent', m.quotesSent, 'text-emerald-400'],
+              ['Bookings', m.won, 'text-emerald-300'],
+              ['Waiting on us now', m.awaiting, m.awaiting ? 'text-[#FFA08C]' : 'text-white'],
             ].map(([label, value, color]) => (
               <div key={label}>
                 <div className="text-[12px] text-[#b3a59e] uppercase font-bold">{label}</div>
@@ -105,7 +101,7 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
             ))}
           </div>
           <div className="text-[12.5px] text-[#b3a59e]">
-            {range.label} · inquiries counted by the date they were received · average reply time: {m.avgTat === null ? 'no reply times recorded yet' : `${m.avgTat} min`}
+            {range.label} · counts what you did in this period (quotes, follow-ups, bookings), plus what is waiting right now{m.revised ? ` · ${m.revised} revised quote${m.revised === 1 ? '' : 's'}` : ''}{m.won ? ` · ${m.bookedCbm} CBM booked` : ''}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -144,7 +140,7 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
           <button onClick={onClose} className="btn-dark">Cancel</button>
           <button onClick={handleExport} className="btn-green">
             {done ? <Check size={14} /> : <Download size={14} />}
-            <span>{done ? 'Downloaded!' : `Download (${m.total} inquiries)`}</span>
+            <span>{done ? 'Downloaded!' : `Download (${m.activityCount} inquiries with activity)`}</span>
           </button>
         </div>
       </div>

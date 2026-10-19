@@ -22,6 +22,13 @@ export const STATUS_CONFIG = {
     dotColor: "#34d399",
     description: "Quotation sent to customer"
   },
+  NEGOTIATING: {
+    label: "In Negotiation",
+    shortLabel: "Negotiating",
+    colorClass: "status-negotiating",
+    dotColor: "#fbbf24",
+    description: "Customer came back on the quote; revised offers going back and forth"
+  },
   FOLLOWUP_NEEDED: {
     label: "Follow-up Required",
     shortLabel: "Follow-up",

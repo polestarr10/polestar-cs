@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Repeat, CalendarClock, Hourglass, Target, CheckCircle2, XCircle, Pencil, AlertTriangle } from 'lucide-react';
 import { isAwaitingReply, minutesWaiting, formatWaiting, REMINDER_INTERVAL_MIN } from '../hooks/useReplyReminders';
-import { formatQuiet, formatExpiry, MAX_FOLLOW_UPS } from '../utils/followUps';
+import { formatQuiet, formatExpiry, MAX_FOLLOW_UPS, quoteRound } from '../utils/followUps';
 import { TaskRow, patchItem } from './WeeklyPlan';
 import { dayKey } from '../utils/nominations';
 import { ListChecks } from 'lucide-react';
@@ -149,7 +149,7 @@ export default function MyDay({ inquiries, now, followUps, progress, canEditTarg
           return (
             <Row key={inq.id} inquiry={inq} onOpen={onViewDetails}
               noteClass={waited >= REMINDER_INTERVAL_MIN ? 'text-[#f87171]' : 'text-amber-300'}
-              note={`${isCustomerReply ? 'Customer replied' : 'New inquiry'} · waiting ${formatWaiting(waited)}`}>
+              note={`${inq.status === 'NEGOTIATING' ? 'Negotiating: customer came back on the quote' : isCustomerReply ? 'Customer replied' : 'New inquiry'} · waiting ${formatWaiting(waited)}`}>
               <button onClick={() => onReply(inq)} className="btn-coral"><Send size={13} /><span>Reply</span></button>
             </Row>
           );
@@ -186,12 +186,15 @@ export default function MyDay({ inquiries, now, followUps, progress, canEditTarg
       </Section>
 
       <Section icon={Hourglass} title="Waiting on customer" color="#34d399" count={awaitingNomination.length}
-        hint="Quoted; waiting for the customer to confirm. Mark confirmed when the nomination arrives."
+        hint="Quote sent; waiting for the customer. When they confirm, click Record booking."
         empty="No open quotes waiting on a customer.">
         {awaitingNomination.map(({ inquiry: inq, fu }) => (
           <Row key={inq.id} inquiry={inq} onOpen={onViewDetails}
-            note={`Quoted ${formatQuiet((now - Date.parse(inq.repliedAt)) / 3600000)} ago · next follow-up in ${formatQuiet((fu.dueAt - now) / 3600000)}${fu.sent ? ` · ${fu.sent} sent` : ''}`}>
-            <button onClick={() => onConfirm(inq)} className="btn-green"><CheckCircle2 size={13} /><span>Customer confirmed</span></button>
+            noteClass={inq.status === 'NEGOTIATING' ? 'text-amber-300' : undefined}
+            note={`${inq.status === 'NEGOTIATING' ? `Negotiating · revised quote (round ${quoteRound(inq)}) sent` : 'Quoted'} ${formatQuiet((now - Date.parse(inq.repliedAt)) / 3600000)} ago · next follow-up in ${formatQuiet((fu.dueAt - now) / 3600000)}${fu.sent ? ` · ${fu.sent} sent` : ''}`}>
+            <button onClick={() => onConfirm(inq)} className="btn-dark text-emerald-400" title="Use this when the customer confirms the booking">
+              <CheckCircle2 size={13} /><span>Record booking</span>
+            </button>
           </Row>
         ))}
       </Section>

@@ -133,6 +133,11 @@ export default function InquiryTable({
                     <span className="font-mono font-bold text-[#e5e5e5]">
                       {item.polCode || item.pol?.split(' ')[0]} ➔ {item.podCode || item.pod?.split(' ')[0]}
                     </span>
+                    {item.direction && (
+                      <span className={`ml-1.5 text-[11px] font-extrabold px-1.5 py-0.5 rounded ${item.direction === 'Import' ? 'bg-sky-950 text-sky-300' : 'bg-emerald-950 text-emerald-300'}`}>
+                        {item.direction === 'Import' ? 'IMP' : 'EXP'}
+                      </span>
+                    )}
                   </td>
 
                   {/* Col 5: CONTAINER */}

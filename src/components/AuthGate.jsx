@@ -64,23 +64,6 @@ function SignIn() {
     setBusy(false);
   };
 
-  const sendLink = async () => {
-    if (!email.trim()) {
-      setMessage({ type: 'error', text: 'Enter your work email first.' });
-      return;
-    }
-    setBusy(true);
-    setMessage(null);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
-    });
-    setMessage(error
-      ? { type: 'error', text: /signups not allowed|not found/i.test(error.message) ? "This email doesn't have an account. Ask your admin to add you." : error.message }
-      : { type: 'ok', text: `Sign-in link sent to ${email.trim()}. Open it on this device.` });
-    setBusy(false);
-  };
-
   return (
     <Shell>
       <div className="text-[17px] font-extrabold text-white">Sign in</div>
@@ -102,8 +85,7 @@ function SignIn() {
         </label>
         <button type="submit" disabled={busy} className="btn-coral w-full justify-center disabled:opacity-50">{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
-      <button onClick={sendLink} disabled={busy} className="btn-dark w-full justify-center disabled:opacity-50">Email me a sign-in link instead</button>
-      <div className="text-[12.5px] text-[#b3a59e]">There is no sign-up here: accounts are created by your admin. If you forgot your password, use the sign-in link.</div>
+      <div className="text-[12.5px] text-[#b3a59e]">There is no sign-up here: accounts are created by your admin. If you forgot your password, ask your admin to reset it.</div>
     </Shell>
   );
 }

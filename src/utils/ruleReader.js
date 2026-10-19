@@ -3,7 +3,7 @@
 import { evaluateEmailRelevance, parseHeaders, latestMessage, extractShipment, missingForQuote } from './emailParser.js';
 
 const REF_RE = /INQ-\d{4}-\d{4,6}/i;
-const OWN_DOMAINS = ['polestarlogistics.com'];
+const OWN_DOMAINS = ['polestarfreight.com', 'polestarlogistics.com'];
 
 const DECLINE_PATTERNS = [
   { reason: 'went_with_competitor', re: /\b(went|gone|going|proceed(?:ed|ing)?|booked|finali[sz]ed)\s+with\s+(another|other|a different|some other)\b|\banother forwarder\b|\bother forwarder\b|\bbetter (?:rate|offer) from\b/i },
@@ -146,7 +146,9 @@ export function readEmailWithRules(text, inquiries = []) {
   const match = findMatch(raw, headers, shipment, inquiries);
   const matched = inquiries.find(i => i.id === match.id) || null;
 
-  const decline = DECLINE_PATTERNS.find(p => p.re.test(latest));
+  // "Your rate is on the higher side, can you do USD 40?" is a negotiation, not a no.
+  const negotiating = MONEY_RE.test(latest) || /\?|\b(can|could) you\b|\b(revise|reduce|lower|match|discount|best (?:rate|price|offer)|target rate|counter)\b/i.test(latest);
+  const decline = DECLINE_PATTERNS.find(p => p.re.test(latest) && !(p.reason === 'price' && negotiating));
   const nominated = NOMINATION_RE.test(latest);
   const relevant = evaluateEmailRelevance(raw).isRelevant;
 

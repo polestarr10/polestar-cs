@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { readEmailWithRules } from '../utils/ruleReader';
+import { findPlaceholders } from '../utils/replyDraft';
 import { sampleEmails } from '../data/sampleEmails';
 import { uploadScreenshotToImageKit } from '../lib/imagekit';
 import {
@@ -39,12 +40,14 @@ function Field({ label, missing, children, className = '' }) {
 
 function CopyButton({ text, label = 'Copy reply' }) {
   const [copied, setCopied] = useState(false);
+  const blanks = findPlaceholders(text);
   return (
     <button
       type="button"
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="btn-coral-outline"
-      disabled={!text.trim()}
+      onClick={() => { if (blanks.length) return; navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="btn-coral-outline disabled:opacity-40 disabled:cursor-not-allowed"
+      disabled={!text.trim() || blanks.length > 0}
+      title={blanks.length ? `Replace ${blanks.join(', ')} in the reply first` : undefined}
     >
       {copied ? <Check size={13} /> : <Copy size={13} />}
       <span>{copied ? 'Copied!' : label}</span>
@@ -208,14 +211,14 @@ export default function EmailIntakeModal({
         ...incoming,
         hasReplied: true,
         repliedAt: new Date().toISOString(),
-        status: match.isQuoted ? 'QUOTED_REPLIED' : match.status,
+        status: match.isQuoted ? 'NEGOTIATING' : match.status,
         auditLog: [...incoming.auditLog, audit('Replied to customer')],
       }, `${match.id}: reply logged`);
       finish();
       return;
     }
     // Our turn again: reminders restart from the time the customer wrote.
-    const waiting = { ...incoming, hasReplied: false, status: 'FOLLOWUP_NEEDED', awaitingSince: at };
+    const waiting = { ...incoming, hasReplied: false, status: match.isQuoted ? 'NEGOTIATING' : 'FOLLOWUP_NEEDED', awaitingSince: at };
     onUpdateInquiry(waiting, `${match.id}: customer reply logged, awaiting your response`);
     onClose();
     if (mode === 'revised') onOpenComposer(waiting);
@@ -283,8 +286,10 @@ export default function EmailIntakeModal({
   const renderReplyBox = (label = 'Draft reply') => (
     <Field label={label}>
       <textarea value={signedReply} onChange={(e) => setReply(e.target.value)} rows={9} className="scm-input w-full font-mono leading-relaxed" />
-      {/\[[A-Z ]+\]/.test(signedReply) && (
-        <span className="text-[12.5px] text-amber-300 font-bold block mt-1">Fill in the [PLACEHOLDERS] before sending.</span>
+      {findPlaceholders(signedReply).length > 0 && (
+        <span className="text-[12.5px] text-amber-300 font-bold block mt-1">
+          Replace {findPlaceholders(signedReply).join(', ')} with the real details. Copying is blocked until you do.
+        </span>
       )}
     </Field>
   );
@@ -408,13 +413,20 @@ export default function EmailIntakeModal({
                     <Field label="Commodity" missing={missing.has('commodity') || !draft.commodity}><input value={draft.commodity || ''} onChange={set('commodity')} className="scm-input w-full" /></Field>
                     <Field label="Gross weight (kg)" missing={missing.has('gross weight') || !(Number(draft.grossWeightKg) > 0)}><input type="number" min="0" value={draft.grossWeightKg || ''} onChange={set('grossWeightKg')} className="scm-input w-full font-mono font-bold" /></Field>
                     <Field label="Volume (CBM)"><input type="number" min="0" step="0.01" value={draft.volumeCbm || ''} onChange={set('volumeCbm')} className="scm-input w-full font-mono" /></Field>
+                    <Field label="Import / export">
+                      <select value={draft.direction || ''} onChange={set('direction')} className="scm-select w-full">
+                        <option value="">Not sure</option>
+                        <option value="Import">Import</option>
+                        <option value="Export">Export</option>
+                      </select>
+                    </Field>
+                    <Field label="Packages"><input value={draft.packages || ''} onChange={set('packages')} className="scm-input w-full" placeholder="e.g. 100 boxes" /></Field>
+                    <Field label="HSN code"><input value={draft.hsnCode || ''} onChange={set('hsnCode')} className="scm-input w-full font-mono" /></Field>
+                    <Field label="Dimensions"><input value={draft.dimensions || ''} onChange={set('dimensions')} className="scm-input w-full font-mono" placeholder="L x W x H" /></Field>
+                    <Field label="Cargo ready"><input value={draft.cargoReadyDate || ''} onChange={set('cargoReadyDate')} className="scm-input w-full" /></Field>
+                    <Field label="Pickup address" className="col-span-3"><input value={draft.pickupAddress || ''} onChange={set('pickupAddress')} className="scm-input w-full" placeholder="Supplier / factory address, for ex-works pickup" /></Field>
+                    <Field label="Special requirements" className="col-span-3"><input value={draft.specialRequirements || ''} onChange={set('specialRequirements')} className="scm-input w-full" /></Field>
                   </div>
-                  {(draft.cargoReadyDate || draft.specialRequirements) && (
-                    <div className="text-sm text-[#dcd2cd]">
-                      {draft.cargoReadyDate && <span className="mr-4"><b className="text-white">Cargo ready:</b> {draft.cargoReadyDate}</span>}
-                      {draft.specialRequirements && <span><b className="text-white">Special:</b> {draft.specialRequirements}</span>}
-                    </div>
-                  )}
                   {result?.missingDetails?.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-sm font-bold text-amber-300">

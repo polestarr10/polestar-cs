@@ -56,7 +56,7 @@ export function getNominations(inquiries) {
 }
 
 // Inquiries that could still turn into a nomination, most promising first.
-const CANDIDATE_ORDER = { QUOTED_REPLIED: 0, FOLLOWUP_NEEDED: 1, UNDER_REVIEW: 2, INQUIRY_RECEIVED: 3 };
+const CANDIDATE_ORDER = { NEGOTIATING: 0, QUOTED_REPLIED: 0, FOLLOWUP_NEEDED: 1, UNDER_REVIEW: 2, INQUIRY_RECEIVED: 3 };
 
 export function lastActivity(inquiry) {
   const log = inquiry.auditLog || [];

@@ -4,7 +4,7 @@
 
 export const PORT_MAP = [
   { name: "Mundra Port", code: "INMUN", country: "India", keywords: ["mundra", "inmun"] },
-  { name: "Nhava Sheva / JNPT", code: "INNSA", country: "India", keywords: ["nhava sheva", "jnpt", "jawaharlal nehru", "innsa"] },
+  { name: "Nhava Sheva / JNPT", code: "INNSA", country: "India", keywords: ["nhava sheva", "nhavasheva", "nhava-sheva", "nhava", "jnpt", "jawaharlal nehru", "innsa"] },
   { name: "Chennai Port", code: "INMAA", country: "India", keywords: ["chennai", "inmaa", "madras"] },
   { name: "Kolkata Port", code: "INCCU", country: "India", keywords: ["kolkata", "calcutta", "inccu", "haldia"] },
   { name: "Tuticorin Port", code: "INTUT", country: "India", keywords: ["tuticorin", "intut", "v.o.chidambaranar"] },
@@ -19,6 +19,16 @@ export const PORT_MAP = [
   { name: "Port Klang", code: "MYPKG", country: "Malaysia", keywords: ["port klang", "mypkg"] },
   { name: "Shanghai", code: "CNSHA", country: "China", keywords: ["shanghai", "cnsha"] },
   { name: "Ningbo", code: "CNNGB", country: "China", keywords: ["ningbo", "cnngb"] },
+  { name: "Qingdao", code: "CNTAO", country: "China", keywords: ["qingdao", "cntao"] },
+  { name: "Shenzhen", code: "CNSZX", country: "China", keywords: ["shenzhen", "yantian", "shekou", "chiwan", "cnszx", "cnytn"] },
+  { name: "Guangzhou / Nansha", code: "CNCAN", country: "China", keywords: ["guangzhou", "nansha", "huangpu", "cncan", "cnnsa"] },
+  { name: "Xiamen", code: "CNXMN", country: "China", keywords: ["xiamen", "cnxmn"] },
+  { name: "Tianjin / Xingang", code: "CNTXG", country: "China", keywords: ["tianjin", "xingang", "cntxg", "cntsn"] },
+  { name: "Hong Kong", code: "HKHKG", country: "Hong Kong", keywords: ["hong kong", "hkhkg"] },
+  { name: "Busan", code: "KRPUS", country: "South Korea", keywords: ["busan", "pusan", "krpus"] },
+  { name: "Kaohsiung", code: "TWKHH", country: "Taiwan", keywords: ["kaohsiung", "twkhh"] },
+  { name: "Ho Chi Minh City", code: "VNSGN", country: "Vietnam", keywords: ["ho chi minh", "hcmc", "cat lai", "vnsgn"] },
+  { name: "Laem Chabang", code: "THLCH", country: "Thailand", keywords: ["laem chabang", "bangkok", "thlch", "thbkk"] },
   { name: "New York / Newark", code: "USNYC", country: "USA", keywords: ["new york", "newark", "usnyc"] },
   { name: "Houston", code: "USHOU", country: "USA", keywords: ["houston", "ushou"] },
   { name: "Los Angeles / Long Beach", code: "USLAX", country: "USA", keywords: ["los angeles", "long beach", "uslax"] },
@@ -133,6 +143,28 @@ export function latestMessage(raw) {
   return body.slice(0, cut).trim() || raw.trim();
 }
 
+// Shared mailboxes ("Import Customer Service", "CS Desk") aren't a person to address.
+const GENERIC_SENDER = /\b(customer\s*service|import|export|desk|team|info|sales|operations|ops|support|accounts|enquir|inquir|logistics|booking|admin|cs)\b/i;
+
+// "Best Regards,\n\nViinod | Director" -> "Viinod - Director"
+function signatureName(raw) {
+  const m = raw.match(/(?:regards|thanks|thank you|sincerely|cheers)[,!.]?[ \t]*\r?\n(?:[ \t]*\r?\n){0,3}[ \t]*([A-Z][A-Za-z.']+(?:[ \t]+[A-Z][A-Za-z.']+){0,3})[ \t]*(?:[|,–-][ \t]*([A-Za-z &./]{2,40}?))?[ \t]*\r?$/im);
+  if (!m || GENERIC_SENDER.test(m[1])) return '';
+  return m[2] ? `${m[1].trim()} - ${m[2].trim()}` : m[1].trim();
+}
+
+// The sender's registered company name from their signature, when it matches their email domain.
+function legalNameFromSignature(raw, email) {
+  const base = ((email || '').split('@')[1] || '').split('.')[0].toLowerCase();
+  if (!base || FREE_MAIL.includes(base)) return '';
+  const re = /([A-Z][A-Za-z0-9&.'\- ]{1,70}?\b(?:Private Limited|Pvt\.?\s*Ltd\.?|Limited|Ltd\.?|LLP|Inc\.?|LLC|GmbH|Co\.))/g;
+  for (const m of raw.matchAll(re)) {
+    const name = m[1].replace(/^(?:a|e|w|p|t)\s*:\s*/i, '').trim();
+    if (name.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(base)) return name;
+  }
+  return '';
+}
+
 function companyFromEmail(email) {
   const domain = (email.split('@')[1] || '').toLowerCase();
   const base = domain.split('.')[0];
@@ -154,9 +186,11 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
 
   // Company and contact
   const shipperName = label(['Shipper Name', 'Shipper\\s*\\/\\s*Client', 'Shipper', 'Company Name', 'Company', 'Client', 'Exporter']).split(/[,;]/)[0].trim()
-    || companyFromEmail(headers.fromEmail);
-  const contactPerson = headers.fromName.split(/\s+[-–|]\s+/)[0].trim() || label(['Contact Person', 'Contact', 'Attn']);
-  const phone = raw.match(/(?:Phone|Tel|Mobile|Mob|Cell|WhatsApp|Ph)\.?\s*(?:No\.?)?\s*[:\-]?\s*(\+?[0-9][0-9\s-]{8,15}[0-9])/i);
+    || legalNameFromSignature(raw, headers.fromEmail) || companyFromEmail(headers.fromEmail);
+  const fromPerson = headers.fromName.split(/\s+[-–|]\s+/)[0].trim();
+  const contactPerson = (GENERIC_SENDER.test(fromPerson) ? signatureName(raw) : '') || fromPerson || label(['Contact Person', 'Contact', 'Attn']);
+  const phone = raw.match(/(?:Phone|Tel|Mobile|Mob|Cell|WhatsApp|Ph)\.?\s*(?:No\.?)?\s*[:\-]?\s*(\+?[0-9][0-9\s-]{8,15}[0-9])/i)
+    || raw.match(/(?:^|[\s|])[pmt]\s*:\s*(\+?[0-9][0-9\s-]{8,15}[0-9])/im);
   const gst = raw.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z])\b/i);
 
   // Ports: labelled lines first, then "from X to Y", then known port names.
@@ -173,8 +207,14 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
       podInfo ||= portFromLabel(route[2]);
     }
   }
-  if (!polInfo) { const p = findPort(raw, "India"); if (p) polInfo = { name: p.name, code: p.code }; }
-  if (!podInfo) { const p = findPort(raw, "abroad"); if (p) podInfo = { name: p.name, code: p.code }; }
+  // Without labels, assume an export (India -> abroad) unless the email talks about imports.
+  const importHint = /\bimports?\b/i.test(raw) && !/\bexports?\b/i.test(raw);
+  if (!polInfo) { const p = findPort(raw, importHint ? "abroad" : "India"); if (p) polInfo = { name: p.name, code: p.code }; }
+  if (!podInfo) { const p = findPort(raw, importHint ? "India" : "abroad"); if (p) podInfo = { name: p.name, code: p.code }; }
+  const inIndia = (info) => info && (PORT_MAP.find(p => p.code && p.code === info.code)?.country === "India" || /^IN[A-Z]{3}$/.test(info.code || ""));
+  const direction = polInfo && podInfo
+    ? (inIndia(podInfo) && !inIndia(polInfo) ? "Import" : inIndia(polInfo) && !inIndia(podInfo) ? "Export" : "")
+    : importHint ? "Import" : /\bexports?\b/i.test(raw) ? "Export" : "";
 
   // Equipment
   let routingMode = "Unknown";
@@ -237,8 +277,26 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const commodity = label(['Commodity', 'Cargo Description', 'Description of Goods', 'Goods', 'Product', 'Cargo'])
     .replace(/\s*\(.*?HS Code.*?\)\s*/i, ' ').trim();
 
-  const inco = raw.match(/\b(FOB|CIF|CFR|CNF|EXW|FCA|DDP|DAP|CPT|CIP)\b(?:\s+([A-Z][a-zA-Z]+))?/);
-  const incoterms = inco ? [inco[1].toUpperCase(), inco[2] && !/^(Incoterm|Terms?)$/i.test(inco[2]) ? inco[2] : ''].filter(Boolean).join(' ') : '';
+  // First mention wins: in a pasted thread the newest message (e.g. "please quote on
+  // ex-works basis only") comes before the older text it corrects.
+  // Codes must be capitals (so "dap fertiliser" isn't DAP); "Ex works" may be any case.
+  const incoMatches = [
+    raw.match(/\b(FOB|CIF|CFR|CNF|C&F|EXW|FCA|DDP|DAP|CPT|CIP)\b(?:\s+([A-Z][a-zA-Z]+))?/),
+    raw.match(/\b(ex[\s-]?works?)\b(?:\s+([A-Z][a-zA-Z]+))?/i),
+  ].filter(Boolean).sort((a, b) => a.index - b.index);
+  const inco = incoMatches[0];
+  const incoCode = inco ? (/^EX/i.test(inco[1]) ? 'EXW' : /^C&F$/i.test(inco[1]) ? 'CFR' : inco[1].toUpperCase()) : '';
+  const incoPlace = inco && inco[2] && !/^(Incoterms?|Terms?|Basis\w*|Only|Rates?|Price|Quote|Shipment|Cargo|And|Or|To|From|For|Please|Kindly|The)$/i.test(inco[2]) ? inco[2] : '';
+  const incoterms = [incoCode, incoPlace].filter(Boolean).join(' ');
+
+  // Cargo details import inquiries usually give.
+  const PKG = '(boxes|packages|pkgs|cartons|ctns|pallets|cases|crates|bags|drums|rolls|bundles|pieces|pcs)';
+  const pkgLabelled = raw.match(new RegExp(`(?:no\\.?\\s*of|number\\s*of|total)\\s*${PKG}\\s*[:\\-–]?\\s*(\\d[\\d,]*)`, 'i'));
+  const pkgInline = raw.match(new RegExp(`\\b(\\d[\\d,]*)\\s*${PKG}\\b`, 'i'));
+  const packages = pkgLabelled ? `${pkgLabelled[2]} ${pkgLabelled[1].toLowerCase()}` : pkgInline ? `${pkgInline[1]} ${pkgInline[2].toLowerCase()}` : '';
+  const hsn = raw.match(/\b(?:HSN|HS)\s*(?:code|no\.?)?\s*[:\-–]?\s*(\d{4,10})\b/i);
+  const dimensions = label(['Box Dimensions?', 'Carton Dimensions?', 'Package Dimensions?', 'Dimensions?', 'Dims']);
+  const pickupAddress = label(['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
 
   const freeDays = raw.match(/(\d{1,3})\s*days?\s*(?:of\s*)?(?:free|combined|detention|demurrage|det\b|dem\b)|free\s*(?:time|days)[^0-9\n]{0,25}(\d{1,3})/i);
   const ready = label(['Cargo Readiness Date', 'Cargo Ready Date', 'Cargo Readiness', 'Ready Date', 'Readiness']);
@@ -253,16 +311,25 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     polCode: polInfo?.code || '',
     pod: podInfo?.name || '',
     podCode: podInfo?.code || '',
+    direction,
     routingMode,
     containerType,
     containerCount,
+    packages,
+    hsnCode: hsn ? hsn[1] : '',
+    dimensions,
+    pickupAddress,
     commodity,
     grossWeightKg,
     volumeCbm,
     incoterms,
     cargoReadyDate: ready,
     freeDaysRequested: freeDays ? `${freeDays[1] || freeDays[2]} days` : '',
-    specialRequirements: /\bhaz(?:ardous)?\b|\bimo\b|\bdg cargo\b|\bun\s?\d{4}\b/i.test(raw) ? 'Hazardous cargo mentioned' : '',
+    specialRequirements: [
+      /\bhaz(?:ardous)?\b|\bimo\b|\bdg cargo\b|\bun\s?\d{4}\b/i.test(raw) && 'Hazardous cargo mentioned',
+      /pick[\s-]?up address|factory address|door pick[\s-]?up|pick[\s-]?up from/i.test(raw) && 'Pickup from supplier needed',
+      /charges?\s+separately|separate(?:ly)?\s+(?:origin|destination|local)|origin,?\s*destination,?\s*(?:and\s+)?cfs/i.test(raw) && 'Show origin, destination and CFS charges separately',
+    ].filter(Boolean).join('; '),
     urgent: /\burgent\b|\basap\b|\bat the earliest\b/i.test(raw),
   };
 }

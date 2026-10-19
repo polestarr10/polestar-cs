@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 export const REMINDER_INTERVAL_MIN = 30;
 const STORE_KEY = 'polestar_reply_reminders_v1';
-const AWAITING_REPLY_STATUSES = ['INQUIRY_RECEIVED', 'UNDER_REVIEW', 'FOLLOWUP_NEEDED'];
+const AWAITING_REPLY_STATUSES = ['INQUIRY_RECEIVED', 'UNDER_REVIEW', 'FOLLOWUP_NEEDED', 'NEGOTIATING'];
 
 export function isAwaitingReply(inquiry) {
   return !inquiry.hasReplied && AWAITING_REPLY_STATUSES.includes(inquiry.status || 'INQUIRY_RECEIVED');
