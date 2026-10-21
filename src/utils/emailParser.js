@@ -143,6 +143,38 @@ export function latestMessage(raw) {
   return body.slice(0, cut).trim() || raw.trim();
 }
 
+// A labelled value that can run over several lines, like an address:
+//   Factory address: Building 1, Xingyao Park,
+//   Wuyi County, Jinhua City, Zhejiang
+// Starts after the label (or on the next line if the label stands alone) and
+// stops at a blank line, another "Label:" line, or the email's sign-off.
+const BLOCK_STOP = /^\s*(?:(?:best\s+|warm\s+|kind\s+)?regards|thanks|thank you|sincerely|please|kindly|as per|note\b|from:|sent:|to:|cc:|subject:)/i;
+const OTHER_LABEL = /^\s*[A-Za-z][A-Za-z .\/()&-]{1,40}\s*[:：]\s*\S/;
+
+function labelBlock(raw, names) {
+  const lines = raw.replace(/\r/g, '').split('\n');
+  for (const n of names) {
+    const re = new RegExp(`^[\\s>*•\\-]*${n}\\s*(?:\\([^)]*\\))?\\s*[:：\\-–]\\s*(.*)$`, 'i');
+    const start = lines.findIndex(l => re.test(l));
+    if (start === -1) continue;
+    const parts = [];
+    const first = lines[start].match(re)[1].trim();
+    if (first) parts.push(first);
+    for (let k = start + 1; k < lines.length && parts.length < 8; k++) {
+      const line = lines[k].replace(/^[\s>]+/, '').trim();
+      if (!line) {
+        if (parts.length) break; // blank line ends the address
+        continue;                // label on its own line: skip blanks before the address
+      }
+      if (BLOCK_STOP.test(line) || OTHER_LABEL.test(line)) break;
+      parts.push(line);
+    }
+    const value = parts.join(', ').replace(/,\s*,/g, ',').replace(/\s+/g, ' ').trim();
+    if (value) return value.slice(0, 400);
+  }
+  return '';
+}
+
 // Shared mailboxes ("Import Customer Service", "CS Desk") aren't a person to address.
 const GENERIC_SENDER = /\b(customer\s*service|import|export|desk|team|info|sales|operations|ops|support|accounts|enquir|inquir|logistics|booking|admin|cs)\b/i;
 
@@ -296,7 +328,7 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const packages = pkgLabelled ? `${pkgLabelled[2]} ${pkgLabelled[1].toLowerCase()}` : pkgInline ? `${pkgInline[1]} ${pkgInline[2].toLowerCase()}` : '';
   const hsn = raw.match(/\b(?:HSN|HS)\s*(?:code|no\.?)?\s*[:\-–]?\s*(\d{4,10})\b/i);
   const dimensions = label(['Box Dimensions?', 'Carton Dimensions?', 'Package Dimensions?', 'Dimensions?', 'Dims']);
-  const pickupAddress = label(['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
+  const pickupAddress = labelBlock(raw, ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
 
   const freeDays = raw.match(/(\d{1,3})\s*days?\s*(?:of\s*)?(?:free|combined|detention|demurrage|det\b|dem\b)|free\s*(?:time|days)[^0-9\n]{0,25}(\d{1,3})/i);
   const ready = label(['Cargo Readiness Date', 'Cargo Ready Date', 'Cargo Readiness', 'Ready Date', 'Readiness']);

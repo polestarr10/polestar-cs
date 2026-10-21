@@ -424,7 +424,7 @@ export default function EmailIntakeModal({
                     <Field label="HSN code"><input value={draft.hsnCode || ''} onChange={set('hsnCode')} className="scm-input w-full font-mono" /></Field>
                     <Field label="Dimensions"><input value={draft.dimensions || ''} onChange={set('dimensions')} className="scm-input w-full font-mono" placeholder="L x W x H" /></Field>
                     <Field label="Cargo ready"><input value={draft.cargoReadyDate || ''} onChange={set('cargoReadyDate')} className="scm-input w-full" /></Field>
-                    <Field label="Pickup address" className="col-span-3"><input value={draft.pickupAddress || ''} onChange={set('pickupAddress')} className="scm-input w-full" placeholder="Supplier / factory address, for ex-works pickup" /></Field>
+                    <Field label="Pickup address" className="col-span-3"><textarea rows={2} value={draft.pickupAddress || ''} onChange={set('pickupAddress')} className="scm-input w-full" placeholder="Supplier / factory address, for ex-works pickup" /></Field>
                     <Field label="Special requirements" className="col-span-3"><input value={draft.specialRequirements || ''} onChange={set('specialRequirements')} className="scm-input w-full" /></Field>
                   </div>
                   {result?.missingDetails?.length > 0 && (

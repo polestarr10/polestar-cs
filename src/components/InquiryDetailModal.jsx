@@ -283,7 +283,7 @@ ${buildReplyBody(formData, draftFields)}`;
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5">
                   <div className="md:col-span-2">
                     <label className="text-[12.5px] text-[#b3a59e] block">Pickup Address</label>
-                    <input type="text" value={formData.pickupAddress || ''} onChange={(e) => handleFieldChange('pickupAddress', e.target.value)} className="scm-input text-sm w-full" />
+                    <textarea rows={2} value={formData.pickupAddress || ''} onChange={(e) => handleFieldChange('pickupAddress', e.target.value)} className="scm-input text-sm w-full" />
                   </div>
                   <div>
                     <label className="text-[12.5px] text-[#b3a59e] block">Cargo Ready</label>
