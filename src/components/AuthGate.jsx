@@ -9,8 +9,8 @@ function initials(name) {
 }
 
 // id scopes this rep's data: their database rows and this device's cache.
-function toUser({ id, name, role, email }) {
-  return { id, name, role, email, avatar: initials(name) };
+function toUser({ id, name, role, email, signatures }) {
+  return { id, name, role, email, signatures: signatures || [], avatar: initials(name) };
 }
 
 function loadLocalProfile() {
@@ -144,16 +144,24 @@ export default function AuthGate({ children }) {
 
   if (!isSupabaseConfigured) {
     const saveLocal = async (p) => {
+      const next = { ...(localProfile || {}), ...p };
       try {
-        localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(p));
-      } catch {}
-      setLocalProfile(p);
+        localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(next));
+      } catch {
+        return "Couldn't save in this browser.";
+      }
+      setLocalProfile(next);
       setEditing(false);
+      return null;
     };
     if (!localProfile || editing) {
       return <ProfileSetup initial={localProfile} onSave={saveLocal} note={!localProfile ? 'No database is connected, so there are no logins: everything is saved in this browser only.' : null} />;
     }
-    return children(toUser({ id: 'local', ...localProfile }), { onEditProfile: () => setEditing(true), onSignOut: null });
+    return children(toUser({ id: 'local', ...localProfile }), {
+      onEditProfile: () => setEditing(true),
+      onSignOut: null,
+      onSaveSignatures: (signatures) => saveLocal({ signatures }),
+    });
   }
 
   if (session === undefined) {
@@ -162,7 +170,7 @@ export default function AuthGate({ children }) {
   if (!session) return <SignIn />;
 
   const meta = session.user.user_metadata || {};
-  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email };
+  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email, signatures: meta.signatures || [] };
   const saveRemote = async (p) => {
     const { data, error } = await supabase.auth.updateUser({ data: { full_name: p.name, role: p.role } });
     if (error) return error.message;
@@ -172,8 +180,17 @@ export default function AuthGate({ children }) {
   };
   if (!profile.name || editing) return <ProfileSetup initial={profile.name ? profile : null} onSave={saveRemote} />;
 
+  // Signatures are kept on the login itself, so they follow the rep to any device.
+  const saveSignatures = async (signatures) => {
+    const { data, error } = await supabase.auth.updateUser({ data: { signatures } });
+    if (error) return error.message;
+    setSession(s => ({ ...s, user: data.user }));
+    return null;
+  };
+
   return children(toUser(profile), {
     onEditProfile: () => setEditing(true),
     onSignOut: () => supabase.auth.signOut(),
+    onSaveSignatures: saveSignatures,
   });
 }

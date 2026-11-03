@@ -108,18 +108,56 @@ export function evaluateEmailRelevance(text) {
 
 // ---- Headers ----
 
+// Gmail in the browser copies a message without "From:" / "Subject:" labels:
+//   ENQ261099 // QINGDAO // NHAVA SHEVA     <- subject (first line)
+//   Inbox
+//   Viinod Kumar <impcs@kadachanaa.com>     <- sender
+//   Tue, Nov 3, 2026, 11:20 AM (2 hours ago) <- date
+//   to me, Gauri
+const GMAIL_SENDER = /^[ \t]*([^<>\n\r@:]{1,80}?)[ \t]*<([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>[ \t]*$/m;
+const GMAIL_LABELS = /^(inbox|external|important|sent|drafts|starred|spam|updates|promotions|forums|social)$/i;
+
+function gmailDate(text) {
+  const m = text.match(/^\s*(?:[A-Z][a-z]{2},\s*)?([A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4},?\s+\d{1,2}:\d{2}\s*(?:[AP]M)?)/m);
+  if (!m) return NaN;
+  return Date.parse(m[1].replace(/,(?=\s+\d{1,2}:)/, ''));
+}
+
 export function parseHeaders(raw) {
   const from = raw.match(/^\s*From:\s*(?:["']?([^"'<\n\r]+?)["']?\s*)?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?/im);
   const subject = raw.match(/^\s*Subject:\s*([^\n\r]+)/im);
   const date = raw.match(/^\s*(?:Date|Sent):\s*([^\n\r]+)/im);
-  const parsedDate = date ? Date.parse(date[1].replace(/\s+at\s+/i, ' ')) : NaN;
-  const fromName = (from?.[1] || '').trim();
+  let parsedDate = date ? Date.parse(date[1].replace(/\s+at\s+/i, ' ')) : NaN;
+  let fromName = (from?.[1] || '').trim();
+  let fromEmail = (from?.[2] || '').trim();
+  let subjectText = (subject?.[1] || '').trim();
+
+  if (!fromEmail) {
+    const g = GMAIL_SENDER.exec(raw);
+    if (g) {
+      fromName = g[1].trim().replace(/^["']|["']$/g, '');
+      fromEmail = g[2].trim();
+      const before = raw.slice(0, g.index).split(/\r?\n/).map(l => l.trim()).filter(l => l && !GMAIL_LABELS.test(l));
+      if (!subjectText && before.length) subjectText = before[0];
+      if (isNaN(parsedDate)) parsedDate = gmailDate(raw.slice(g.index + g[0].length, g.index + g[0].length + 120));
+    }
+  }
   return {
     fromName,
-    fromEmail: (from?.[2] || '').trim(),
-    subject: (subject?.[1] || '').trim(),
+    fromEmail,
+    subject: subjectText,
     sentAt: isNaN(parsedDate) ? '' : new Date(parsedDate).toISOString(),
   };
+}
+
+// Last resort when the paste has no sender line: the email address in the
+// signature ("e: name@company.com"), else the first address in the text,
+// skipping any of the given own-company domains.
+export function emailFromBody(raw, ownDomains = []) {
+  const own = (e) => ownDomains.some(d => e.toLowerCase().endsWith(`@${d}`));
+  const labelled = [...raw.matchAll(/(?:^|[\s|])(?:e|email|e-mail|mail)\s*[:\-]\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gim)].map(m => m[1]);
+  const any = [...raw.matchAll(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)].map(m => m[0]);
+  return [...labelled, ...any].find(e => !own(e)) || '';
 }
 
 // The newest message in a pasted thread: everything before the first quoted reply.
@@ -175,6 +213,39 @@ function labelBlock(raw, names) {
   return '';
 }
 
+// Package kinds, optionally with a material: "wooden boxes", "jumbo bags", "pallets".
+const PKG_KIND = '(?:(?:wooden|wood|plywood|ply|corrugated|jumbo|steel|plastic|pp|hdpe|paper|gunny|carton)\\s+)?'
+  + '(?:boxes|box|packages|package|pkgs|pkg|cartons|carton|ctns|ctn|pallets|pallet|plts|skids|skid|cases|case|crates|crate|'
+  + 'bags|bag|sacks|sack|drums|drum|barrels|barrel|rolls|roll|bundles|bundle|coils|coil|pieces|piece|pcs|ibcs|ibc|totes|tote|reels|reel)';
+const GENERIC_PKG = /^(packages?|pkgs?)$/i;
+
+// "100 boxes", "12 wooden boxes", "No. of packages: 5 pallets", "Pkgs: 8" +
+// "Packing: wooden crates", or just "Packing: pallets".
+function packagesFrom(raw, label) {
+  const counted = raw.match(new RegExp(`\\b(\\d[\\d,]*)\\s*(?:nos?\\.?\\s*(?:of\\s+)?)?(${PKG_KIND})\\b`, 'i'));
+  const labelled = raw.match(new RegExp(`(?:no\\.?\\s*of|number\\s*of|total|qty\\.?\\s*(?:of)?)?\\s*\\b(${PKG_KIND})\\s*[:\\-–]\\s*(\\d[\\d,]*)(?:\\s*(${PKG_KIND})\\b)?`, 'i'));
+  const packing = label(['Packing(?:\\s+Type)?', 'Packaging(?:\\s+Type)?', 'Package Type', 'Type of Packing', 'Packing Details']);
+  const kindFromPacking = (packing.match(new RegExp(PKG_KIND, 'i')) || [])[0] || '';
+
+  let count = '';
+  let kind = '';
+  if (labelled) {
+    count = labelled[2];
+    kind = labelled[3] || labelled[1];
+  } else if (counted) {
+    count = counted[1];
+    kind = counted[2];
+  }
+  // A generic word ("packages") gives way to the actual packing if it's named elsewhere.
+  if ((!kind || GENERIC_PKG.test(kind)) && kindFromPacking) kind = kindFromPacking;
+  if (count) return `${count} ${kind.toLowerCase()}`.trim();
+  return packing ? packing.slice(0, 60) : '';
+}
+
+// HSN / HS code anywhere in the email: "HSN CODE: 84678900", "(HSN# 8455300000)",
+// "HS Code No. 8455", "HSN/SAC - 8455", "H.S. code 845530".
+const HSN_RE = /\b(?:HSN|H\.?S\.?)(?:\s*\/\s*SAC)?\s*(?:code|no\.?|number)?\s*(?:no\.?)?\s*[#:.\-–]?\s*(\d{4,10})\b/i;
+
 // Shared mailboxes ("Import Customer Service", "CS Desk") aren't a person to address.
 const GENERIC_SENDER = /\b(customer\s*service|import|export|desk|team|info|sales|operations|ops|support|accounts|enquir|inquir|logistics|booking|admin|cs)\b/i;
 
@@ -220,7 +291,7 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const shipperName = label(['Shipper Name', 'Shipper\\s*\\/\\s*Client', 'Shipper', 'Company Name', 'Company', 'Client', 'Exporter']).split(/[,;]/)[0].trim()
     || legalNameFromSignature(raw, headers.fromEmail) || companyFromEmail(headers.fromEmail);
   const fromPerson = headers.fromName.split(/\s+[-–|]\s+/)[0].trim();
-  const contactPerson = (GENERIC_SENDER.test(fromPerson) ? signatureName(raw) : '') || fromPerson || label(['Contact Person', 'Contact', 'Attn']);
+  const contactPerson = (!fromPerson || GENERIC_SENDER.test(fromPerson) ? signatureName(raw) : '') || fromPerson || label(['Contact Person', 'Contact', 'Attn']);
   const phone = raw.match(/(?:Phone|Tel|Mobile|Mob|Cell|WhatsApp|Ph)\.?\s*(?:No\.?)?\s*[:\-]?\s*(\+?[0-9][0-9\s-]{8,15}[0-9])/i)
     || raw.match(/(?:^|[\s|])[pmt]\s*:\s*(\+?[0-9][0-9\s-]{8,15}[0-9])/im);
   const gst = raw.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z])\b/i);
@@ -302,31 +373,46 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     grossWeightKg = Math.round(/^kg|^kilo/i.test(bestWeight.m[2]) ? value : value * 1000);
   }
 
-  const volume = raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i);
+  // "2.9 CBM" or a labelled line "CBM: 2.9" / "Volume - 2.9".
+  const volume = raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i)
+    || raw.match(/^[\s>*•-]*(?:total\s+)?(?:cbm|volume|vol\.?|measurement)\s*(?:\(\s*cbm\s*\))?\s*[:\-–]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/im);
   const volumeCbm = volume ? parseFloat(volume[1].replace(/,/g, '')) : 0;
 
+  // A volume in CBM with no container named means the cargo goes LCL.
+  if (!containerType && volumeCbm > 0) {
+    routingMode = "Ocean LCL";
+    containerType = "LCL";
+  }
+
   // Commodity: labelled lines only, so headings like "COMMODITY & CARGO PARTICULARS:" don't match.
-  const commodity = label(['Commodity', 'Cargo Description', 'Description of Goods', 'Goods', 'Product', 'Cargo'])
-    .replace(/\s*\(.*?HS Code.*?\)\s*/i, ' ').trim();
+  const commodity = label([
+    'Commodity(?:\\s+Description)?', 'Cargo Description', 'Description of Goods', 'Goods Description', 'Product Description',
+    'Nature of (?:Goods|Cargo)', 'Item Description', 'Description', 'Desc\\.?', 'Goods', 'Products?', 'Items?', 'Material', 'Cargo(?:\\s+Details)?',
+  ])
+    .replace(/^(?:description|details|desc\.?)\s*[:\-–]\s*/i, '')
+    // The HSN code goes in its own field, so take it (and stray "*") out of the description.
+    .replace(/\s*[([]\s*(?:HSN|H\.?S\.?)(?=[\s#:.\-–/]|code|no)[^)\]]*[)\]]/i, ' ')
+    .replace(new RegExp(`\\s*[-–,;/]?\\s*${HSN_RE.source}`, 'i'), ' ')
+    .replace(/[\s*]+$/, '')
+    .trim();
 
   // First mention wins: in a pasted thread the newest message (e.g. "please quote on
   // ex-works basis only") comes before the older text it corrects.
   // Codes must be capitals (so "dap fertiliser" isn't DAP); "Ex works" may be any case.
   const incoMatches = [
-    raw.match(/\b(FOB|CIF|CFR|CNF|C&F|EXW|FCA|DDP|DAP|CPT|CIP)\b(?:\s+([A-Z][a-zA-Z]+))?/),
-    raw.match(/\b(ex[\s-]?works?)\b(?:\s+([A-Z][a-zA-Z]+))?/i),
+    // The place ("FOB Mundra") must be on the same line, so the first word of the
+    // next line ("FOB" then "Commodity: …") isn't taken as the place.
+    raw.match(/\b(FOB|CIF|CFR|CNF|C&F|EXW|FCA|DDP|DAP|CPT|CIP)\b(?:[ \t]+([A-Z][a-zA-Z]+))?/),
+    raw.match(/\b(ex[\s-]?works?)\b(?:[ \t]+([A-Z][a-zA-Z]+))?/i),
   ].filter(Boolean).sort((a, b) => a.index - b.index);
   const inco = incoMatches[0];
   const incoCode = inco ? (/^EX/i.test(inco[1]) ? 'EXW' : /^C&F$/i.test(inco[1]) ? 'CFR' : inco[1].toUpperCase()) : '';
-  const incoPlace = inco && inco[2] && !/^(Incoterms?|Terms?|Basis\w*|Only|Rates?|Price|Quote|Shipment|Cargo|And|Or|To|From|For|Please|Kindly|The)$/i.test(inco[2]) ? inco[2] : '';
+  const incoPlace = inco && inco[2] && !/^(Incoterms?|Inco|Terms?|Conditions?|Basis\w*|Only|Rates?|Price|Prices|Value|Charges?|Quote|Quotation|Offer|Shipment|Cargo|Delivery|Port|POL|POD|Origin|Destination|Commodity|Weight|Volume|CBM|Pickup|Pick|And|Or|To|From|For|With|Please|Kindly|The|We|Our|As|Is|Are)$/i.test(inco[2]) ? inco[2] : '';
   const incoterms = [incoCode, incoPlace].filter(Boolean).join(' ');
 
   // Cargo details import inquiries usually give.
-  const PKG = '(boxes|packages|pkgs|cartons|ctns|pallets|cases|crates|bags|drums|rolls|bundles|pieces|pcs)';
-  const pkgLabelled = raw.match(new RegExp(`(?:no\\.?\\s*of|number\\s*of|total)\\s*${PKG}\\s*[:\\-–]?\\s*(\\d[\\d,]*)`, 'i'));
-  const pkgInline = raw.match(new RegExp(`\\b(\\d[\\d,]*)\\s*${PKG}\\b`, 'i'));
-  const packages = pkgLabelled ? `${pkgLabelled[2]} ${pkgLabelled[1].toLowerCase()}` : pkgInline ? `${pkgInline[1]} ${pkgInline[2].toLowerCase()}` : '';
-  const hsn = raw.match(/\b(?:HSN|HS)\s*(?:code|no\.?)?\s*[:\-–]?\s*(\d{4,10})\b/i);
+  const packages = packagesFrom(raw, label);
+  const hsn = raw.match(HSN_RE);
   const dimensions = label(['Box Dimensions?', 'Carton Dimensions?', 'Package Dimensions?', 'Dimensions?', 'Dims']);
   const pickupAddress = labelBlock(raw, ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
 

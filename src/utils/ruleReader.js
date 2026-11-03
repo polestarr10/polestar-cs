@@ -1,6 +1,6 @@
 // Reads a pasted email without AI and returns the same result shape as the AI
 // reader (api/_lib/analyzeEmail.js), so the Paste Email screen works either way.
-import { evaluateEmailRelevance, parseHeaders, latestMessage, extractShipment, missingForQuote } from './emailParser.js';
+import { evaluateEmailRelevance, parseHeaders, latestMessage, extractShipment, missingForQuote, emailFromBody } from './emailParser.js';
 
 const REF_RE = /INQ-\d{4}-\d{4,6}/i;
 const OWN_DOMAINS = ['polestarfreight.com', 'polestarlogistics.com'];
@@ -140,6 +140,12 @@ export function readEmailWithRules(text, inquiries = []) {
       headers = { ...headers, fromName: customer.name, fromEmail: customer.email, sentAt: quoted.sentAt || headers.sentAt };
       customerText = rest;
     }
+  }
+  // No usable sender line (body-only paste, or only our own address): use the
+  // customer's address from the signature or text.
+  if (!headers.fromEmail || OWN_DOMAINS.some(d => headers.fromEmail.toLowerCase().endsWith(`@${d}`))) {
+    const found = emailFromBody(customerText, OWN_DOMAINS);
+    if (found) headers = { ...headers, fromName: headers.fromEmail ? '' : headers.fromName, fromEmail: found };
   }
   const shipment = extractShipment(raw, headers);
   if (customerText !== raw) shipment.contactPhone = extractShipment(customerText, headers).contactPhone;
