@@ -19,6 +19,7 @@ import { fetchPlan, savePlan, deletePlan } from './lib/plans';
 import Sidebar from './components/Sidebar';
 import TeamReport from './components/TeamReport';
 import FollowUpModal from './components/FollowUpModal';
+import SignatureManager from './components/SignatureManager';
 import useFollowUpAlerts from './hooks/useFollowUpAlerts';
 import { isAwaitingReply } from './hooks/useReplyReminders';
 import { fetchIsManager, syncProfileDb, fetchTargets, saveTargetDb, weekKey } from './lib/team';
@@ -37,7 +38,8 @@ import { CheckCircle2, AlertCircle, CloudOff, RefreshCw } from 'lucide-react';
 
 const STORAGE_KEY = 'polestar_cs_inquiries_live_clean_v1';
 
-export default function App({ currentUser, onSignOut, onEditProfile }) {
+export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures }) {
+  const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [inquiries, setInquiries] = useState(() => {
     try {
       const saved = readUserItem(STORAGE_KEY, currentUser.id);
@@ -441,6 +443,7 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
         currentUser={currentUser}
         onSignOut={onSignOut}
         onEditProfile={onEditProfile}
+        onManageSignatures={onSaveSignatures ? () => setSignaturesOpen(true) : null}
       />
 
       <div className="flex-1 flex min-h-0">
@@ -580,7 +583,19 @@ export default function App({ currentUser, onSignOut, onEditProfile }) {
         currentUser={currentUser}
       />
 
+      <SignatureManager
+        isOpen={signaturesOpen}
+        onClose={() => setSignaturesOpen(false)}
+        currentUser={currentUser}
+        onSave={async (list) => {
+          const err = await onSaveSignatures(list);
+          if (!err) showToast(`${list.length} signature${list.length === 1 ? '' : 's'} saved`, 'success');
+          return err;
+        }}
+      />
+
       <ReplyComposerModal
+        onSaveSignatures={onSaveSignatures}
         isOpen={quickQuoteModalOpen}
         onClose={() => setQuickQuoteModalOpen(false)}
         inquiry={quoteInquiryTarget}

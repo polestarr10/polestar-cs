@@ -1,0 +1,45 @@
+ENQ300112 // SHANGHAI // NHAVA SHEVA // LCL - 3.4 CBM
+External
+Inbox
+
+Meera Joshi <imports@bluehaven-logistics.in>
+Wed, Nov 4, 2026, 10:12 AM (2 days ago)
+to me
+
+Dear Sir,
+
+Please quote for below import LCL shipment:
+
+POL: Shanghai
+POD: Nhava Sheva
+Commodity: Kitchen appliances
+CBM: 3.4
+Gross weight: 820 kgs
+No. of packages: 42 cartons
+Incoterms: FOB
+
+Regards,
+Meera Joshi | Import Manager
+Bluehaven Logistics Pvt Ltd
+e: imports@bluehaven-logistics.in | m: +91 98200 11122
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "shipperName": "Bluehaven Logistics",
+      "contactPerson": "Meera Joshi",
+      "contactEmail": "imports@bluehaven-logistics.in",
+      "pol": "CNSHA",
+      "pod": "INNSA",
+      "direction": "Import",
+      "containerType": "LCL",
+      "commodity": "Kitchen appliances",
+      "volumeCbm": 3.4,
+      "grossWeightKg": 820,
+      "packages": "42 cartons",
+      "incoterms": "FOB"
+    }
+  ]
+}

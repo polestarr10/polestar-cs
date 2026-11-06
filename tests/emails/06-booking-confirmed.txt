@@ -1,0 +1,22 @@
+From: Meera Joshi <imports@bluehaven-logistics.in>
+Subject: Re: ENQ300112 // SHANGHAI // NHAVA SHEVA // LCL - 3.4 CBM [Ref INQ-2026-1001]
+
+Dear Sir,
+
+We accept your revised rate. Please proceed with the booking. Cargo will be ready on 12th Nov.
+
+Regards,
+Meera
+
+=== EXPECTED ===
+{
+  "kind": "nomination",
+  "matches": "INQ-2026-1001",
+  "existing": [
+    {
+      "id": "INQ-2026-1001",
+      "contactEmail": "imports@bluehaven-logistics.in",
+      "emailSubject": "ENQ300112 // SHANGHAI // NHAVA SHEVA // LCL - 3.4 CBM"
+    }
+  ]
+}

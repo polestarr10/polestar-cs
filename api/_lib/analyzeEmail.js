@@ -30,7 +30,7 @@ For a new_inquiry, set matchedInquiryId only when it is clearly a duplicate of a
 - Ports: the port name, plus its UN/LOCODE only when you are confident of it (for example INMUN Mundra, INNSA Nhava Sheva/JNPT, INMAA Chennai, AEJEA Jebel Ali, NLRTM Rotterdam, SGSIN Singapore, BEANR Antwerp). Otherwise leave the code "".
 - gstin exactly as written (15 characters), "" if absent.
 - direction: "Import" when cargo comes into India (destination port in India, origin abroad), "Export" when it leaves India, "" if unclear.
-- packages: the number and kind of packages as written, e.g. "100 boxes" or "12 pallets"; hsnCode: the HSN/HS code digits; dimensions: package dimensions as written; pickupAddress: the supplier/factory pickup address if given. "" when absent.
+- packages: the number and kind of packages as written, e.g. "100 boxes" or "12 pallets"; hsnCode: the HSN/HS code digits; dimensions: package dimensions as written; pickupAddress: the supplier/factory pickup address if given; customerAddress: the sender company's own office address (usually in their signature), not the pickup address. "" when absent.
 - email.sentAt: ISO 8601 with timezone offset for the latest customer message if a date is visible, otherwise "".
 - summary: one short plain-English line describing the latest message, for the inquiry's history. Examples: "New inquiry: 2x40' HC auto parts, Mundra to Jebel Ali, 44.8 MT" or "Asks for USD 1,350 per 40'HC and 21 free days at Jebel Ali".
 - missingDetails: for a new_inquiry, which of these a forwarder needs to quote and the email doesn't give: origin port, destination port, container type, commodity, gross weight, cargo ready date. Empty for other kinds.
@@ -81,6 +81,7 @@ const SCHEMA = obj({
     hsnCode: str,
     dimensions: str,
     pickupAddress: str,
+    customerAddress: str,
     commodity: str,
     grossWeightKg: num,
     volumeCbm: num,

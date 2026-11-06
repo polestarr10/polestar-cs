@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     hsn_code TEXT,
     dimensions TEXT,
     pickup_address TEXT,
+    customer_address TEXT,
     cargo_ready_date TEXT,
     special_requirements TEXT,
     urgency TEXT DEFAULT 'NORMAL',

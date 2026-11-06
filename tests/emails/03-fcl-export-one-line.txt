@@ -1,0 +1,28 @@
+From: Rakesh Patel <rakesh.p@sunglowtextiles.com>
+Subject: Rate request - Mundra to Jebel Ali
+Date: Fri, 6 Nov 2026 09:30:00 +0530
+
+Hi team,
+
+Need rate for 2x40HC from Mundra to Jebel Ali, cotton fabric rolls, approx 38 MT total, FOB Mundra. Cargo ready 20th Nov.
+
+Thanks,
+Rakesh Patel
+Sunglow Textiles Ltd
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "contactPerson": "Rakesh Patel",
+      "contactEmail": "rakesh.p@sunglowtextiles.com",
+      "pol": "INMUN",
+      "pod": "AEJEA",
+      "direction": "Export",
+      "containerType": "2x40' HC",
+      "grossWeightKg": 38000,
+      "incoterms": "FOB"
+    }
+  ]
+}

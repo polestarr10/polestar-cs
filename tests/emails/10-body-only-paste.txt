@@ -1,0 +1,35 @@
+Dear Sir,
+
+Request you to quote for import shipment from Ho Chi Minh to Nhava Sheva.
+
+Commodity: Wooden furniture
+No of pallets: 6
+Volume: 9.6 cbm
+Gross weight: 2,100 kgs
+Incoterm - FOB
+
+Best Regards,
+
+Nisha Kulkarni | Logistics Executive
+a: Greenfield Home Decor Pvt Ltd | Pune
+e: nisha.k@greenfieldhome.in | p: +91 20 4000 1234
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "contactPerson": "Nisha Kulkarni",
+      "contactEmail": "nisha.k@greenfieldhome.in",
+      "pol": "VNSGN",
+      "pod": "INNSA",
+      "direction": "Import",
+      "containerType": "LCL",
+      "commodity": "Wooden furniture",
+      "packages": "6 pallets",
+      "volumeCbm": 9.6,
+      "grossWeightKg": 2100,
+      "incoterms": "FOB"
+    }
+  ]
+}

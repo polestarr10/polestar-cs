@@ -1,0 +1,42 @@
+From: Booking Team <booking@crestway-cargo.com>
+Subject: LCL rate request - 3 lanes
+
+Hi,
+
+Kindly quote LCL rates for the following:
+
+Sr | POL        | POD         | Commodity       | CBM | Weight (kg)
+1  | Shanghai   | Nhava Sheva | Furniture parts | 6.0 | 1500
+2  | Ningbo     | Chennai     | Hand tools      | 2.2 | 640
+3  | Singapore  | Nhava Sheva | Chemicals (non-haz) | 3.5 | 1100
+
+Thanks,
+Crestway Cargo
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "pol": "CNSHA",
+      "pod": "INNSA",
+      "commodity": "Furniture parts",
+      "volumeCbm": 6,
+      "grossWeightKg": 1500
+    },
+    {
+      "pol": "CNNGB",
+      "pod": "INMAA",
+      "commodity": "Hand tools",
+      "volumeCbm": 2.2,
+      "grossWeightKg": 640
+    },
+    {
+      "pol": "SGSIN",
+      "pod": "INNSA",
+      "commodity": "Chemicals",
+      "volumeCbm": 3.5,
+      "grossWeightKg": 1100
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 // Builds the customer quotation reply for an inquiry and the links that open it
-// in the rep's email client.
+// in the rep's email client. Two formats: FCL (rate per container) and LCL
+// (rate per W/M, with a minimum and separate origin / CFS / destination charges).
+import { pickSignature } from './signatures';
 
 const PLACEHOLDER_EMAILS = ['inquiry@client.com'];
 
@@ -42,9 +44,47 @@ export function formatRate(currency, amount, unit) {
   return `${CURRENCY_SYMBOL[currency] || currency + ' '}${num} ${unit || ''}`.trim();
 }
 
+export function quoteFormat(inquiry) {
+  const c = `${inquiry?.containerType || ''} ${inquiry?.routingMode || ''}`;
+  return /\bLCL\b|consol/i.test(c) || (!/\d\s*x?\s*(20|40|45)/.test(c) && Number(inquiry?.volumeCbm) > 0) ? 'LCL' : 'FCL';
+}
+
+// W/M = per CBM or per 1,000 kg, whichever is higher.
+export function chargeableWM(cbm, kg) {
+  const wm = Math.max(Number(cbm) || 0, (Number(kg) || 0) / 1000);
+  return Math.round(wm * 100) / 100;
+}
+
+let chargeSeq = 0;
+export function newCharge(name = '', unit = '', currency = 'USD') {
+  return { id: `c${Date.now().toString(36)}${(chargeSeq++).toString(36)}`, name, currency, amount: '', unit };
+}
+
+// Starting charge lines for each format. Lines left without an amount aren't
+// put in the reply, so unused ones can simply be left blank.
+export function defaultCharges(format, inquiry) {
+  const cur = inquiry?.quotedCurrency || 'USD';
+  const pickup = /^EXW/i.test(inquiry?.incoterms || '') || Boolean(inquiry?.pickupAddress);
+  const isImport = inquiry?.direction === 'Import';
+  if (format === 'LCL') {
+    return [
+      pickup && newCharge('Pickup / origin trucking', 'per shipment', cur),
+      newCharge('Origin charges', '/ W/M', cur),
+      newCharge(isImport ? 'Destination CFS charges' : 'Origin CFS charges', '/ W/M', isImport ? 'INR' : cur),
+      newCharge('Destination charges (DO, documentation)', 'per BL', isImport ? 'INR' : cur),
+    ].filter(Boolean);
+  }
+  return [
+    pickup && newCharge('Pickup / origin haulage', 'per container', cur),
+    newCharge('Origin THC', 'per container', isImport ? cur : 'INR'),
+    newCharge('BL / documentation fee', 'per BL', isImport ? cur : 'INR'),
+    newCharge('Destination THC', 'per container', isImport ? 'INR' : cur),
+  ].filter(Boolean);
+}
+
 export function defaultRateUnit(inquiry) {
   const c = `${inquiry?.containerType || ''} ${inquiry?.routingMode || ''}`;
-  if (c.includes('LCL')) return '/ CBM';
+  if (quoteFormat(inquiry) === 'LCL') return '/ W/M';
   if (c.includes('Reefer')) return "/ 40' Reefer";
   if (c.includes('20')) return "/ 20'GP";
   return "/ 40'HC";
@@ -57,8 +97,13 @@ function endOfMonth() {
 }
 
 // Editable draft state seeded from an inquiry.
-export function initialDraftFields(inquiry) {
+export function initialDraftFields(inquiry, currentUser) {
+  const format = quoteFormat(inquiry);
   return {
+    format,
+    charges: defaultCharges(format, inquiry),
+    minimum: format === 'LCL' ? '1 W/M' : '',
+    signatureId: pickSignature(currentUser).id,
     contactPerson: inquiry.contactPerson || '',
     contactEmail: cleanEmail(inquiry.contactEmail),
     pol: inquiry.pol || '',
@@ -80,7 +125,7 @@ export function initialDraftFields(inquiry) {
     rateUnit: defaultRateUnit(inquiry),
     carrier: inquiry.preferredCarrier || '',
     transitTime: '',
-    freeDays: inquiry.freeDaysAtPod || '14 days combined demurrage/detention',
+    freeDays: inquiry.freeDaysAtPod || (format === 'LCL' ? '' : '14 days combined demurrage/detention'),
     validity: inquiry.quoteValidity || endOfMonth(),
     remarks: '',
   };
@@ -103,7 +148,16 @@ function formatDate(iso) {
 }
 
 function line(label, value) {
-  return `${(label + ':').padEnd(20)}${value}`;
+  // Long labels ("Pickup / origin trucking") still get a space before the value.
+  const head = `${label}:`.padEnd(20);
+  return head.endsWith(' ') ? `${head}${value}` : `${head} ${value}`;
+}
+
+// "Viinod - Director" -> "Viinod". An email address in the contact field
+// (no name was found) isn't something to greet, so it becomes "Sir/Madam".
+export function greetingFor(contactPerson) {
+  const name = (contactPerson || '').split(/\s+-\s+/)[0].trim();
+  return name && !name.includes('@') ? name : 'Sir/Madam';
 }
 
 export function buildReplySubject(inquiry, f) {
@@ -116,8 +170,15 @@ export function buildReplySubject(inquiry, f) {
   return `Freight Quotation ${inquiry.id}: ${route} – ${f.containerType}`;
 }
 
+function chargeLine(c) {
+  const amount = parseFloat(c.amount);
+  return line(c.name || 'Charge', `${formatRate(c.currency, amount, c.unit)}`);
+}
+
 export function buildReplyBody(inquiry, f, currentUser) {
-  const greetingName = (f.contactPerson || '').split(/\s+-\s+/)[0].trim() || 'Sir/Madam';
+  const lcl = f.format === 'LCL';
+  const wm = chargeableWM(f.volumeCbm, f.grossWeightKg);
+  const greetingName = greetingFor(f.contactPerson);
   const shipment = [
     line('Port of loading', port(f.pol, f.polCode)),
     line('Port of discharge', port(f.pod, f.podCode)),
@@ -125,26 +186,30 @@ export function buildReplyBody(inquiry, f, currentUser) {
     line('Commodity', f.commodity || '—'),
     line('Gross weight', formatWeight(f.grossWeightKg)),
     Number(f.volumeCbm) > 0 && line('Volume', `${Number(f.volumeCbm).toLocaleString()} CBM`),
+    lcl && wm > 0 && line('Chargeable', `${wm} W/M`),
     f.packages && line('Packages', f.packages),
-    f.dimensions && line('Dimensions', f.dimensions),
+    // Several package sizes ("…; …") go one per line under the label.
+    ...(f.dimensions ? f.dimensions.split(/\s*;\s*/).filter(Boolean).map((d, i) => (i === 0 ? line('Dimensions', d) : `${' '.repeat(20)}${d}`)) : []),
     f.hsnCode && line('HSN code', f.hsnCode),
     f.incoterms && line('Incoterms', f.incoterms),
     f.pickupAddress && line('Pickup from', f.pickupAddress),
   ].filter(Boolean);
 
+  const freight = Number(f.rateAmount) > 0 ? formatRate(f.currency, f.rateAmount, f.rateUnit) : '[RATE]';
+  const charges = (f.charges || []).filter(c => parseFloat(c.amount) > 0);
   const quote = [
-    line('Ocean freight', Number(f.rateAmount) > 0 ? formatRate(f.currency, f.rateAmount, f.rateUnit) : '[RATE]'),
+    line('Ocean freight', lcl && f.minimum ? `${freight} (minimum ${f.minimum})` : freight),
+    ...charges.map(chargeLine),
     f.carrier && line('Carrier', f.carrier),
     f.transitTime && line('Transit time', f.transitTime),
-    f.freeDays && line('Free time at POD', f.freeDays),
+    f.freeDays && line(lcl ? 'Free storage at CFS' : 'Free time at POD', f.freeDays),
     line('Valid until', formatDate(f.validity)),
   ].filter(Boolean);
 
-  const signature = [
-    currentUser?.name || 'Polestar CS Team',
-    currentUser?.role,
-    'Polestar Consolidators & Freight Forwarders Pvt Ltd',
-  ].filter(Boolean);
+  const signature = pickSignature(currentUser, f.signatureId).text.split('\n');
+  const terms = lcl
+    ? 'LCL rates are per W/M (1 CBM or 1,000 kg, whichever is higher). Rates are subject to space availability at the time of booking. Charges not listed above are extra at actuals.'
+    : 'Rates are subject to space and equipment availability at the time of booking. Origin and destination local charges are extra unless stated above.';
 
   return [
     `Dear ${greetingName},`,
@@ -154,11 +219,11 @@ export function buildReplyBody(inquiry, f, currentUser) {
     'SHIPMENT DETAILS',
     ...shipment,
     '',
-    `QUOTATION (Ref: ${inquiry.id})`,
+    `QUOTATION (Ref: ${inquiry.id}) – ${lcl ? 'LCL' : 'FCL'}`,
     ...quote,
     ...(f.remarks?.trim() ? ['', `Remarks: ${f.remarks.trim()}`] : []),
     '',
-    'Rates are subject to space and equipment availability at the time of booking. Origin and destination local charges are extra unless stated above.',
+    terms,
     '',
     'Kindly confirm to proceed with the booking.',
     '',

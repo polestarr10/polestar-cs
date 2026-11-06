@@ -1,0 +1,22 @@
+From: Meera Joshi <imports@bluehaven-logistics.in>
+Subject: Re: ENQ300112 // SHANGHAI // NHAVA SHEVA // LCL - 3.4 CBM [Ref INQ-2026-1001]
+
+Dear Sir,
+
+Thanks for the quote. Your rate is on the higher side. Can you do USD 35 per W/M? Also please confirm transit time.
+
+Regards,
+Meera
+
+=== EXPECTED ===
+{
+  "kind": "customer_reply",
+  "matches": "INQ-2026-1001",
+  "existing": [
+    {
+      "id": "INQ-2026-1001",
+      "contactEmail": "imports@bluehaven-logistics.in",
+      "emailSubject": "ENQ300112 // SHANGHAI // NHAVA SHEVA // LCL - 3.4 CBM"
+    }
+  ]
+}

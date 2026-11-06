@@ -57,6 +57,19 @@ function findPort(text, onlyCountry = null) {
   return best?.port || null;
 }
 
+// The known port mentioned last in a piece of text ("LCL 2.5 CBM Ningbo" -> Ningbo).
+function findPortAtEnd(text) {
+  let best = null;
+  for (const port of PORT_MAP) {
+    for (const k of port.keywords) {
+      for (const m of text.matchAll(new RegExp(`\\b${escapeRe(k)}\\b`, 'gi'))) {
+        if (!best || m.index > best.index) best = { port, index: m.index };
+      }
+    }
+  }
+  return best && text.slice(best.index).trim().length <= 20 ? best.port : null;
+}
+
 // A labelled port line ("POL: Mundra (INMUN), India"): a known port, else the text as written.
 function portFromLabel(value) {
   const known = findPort(value);
@@ -123,8 +136,23 @@ function gmailDate(text) {
   return Date.parse(m[1].replace(/,(?=\s+\d{1,2}:)/, ''));
 }
 
+// "From: Name <a@b.com>", "From: a@b.com <a@b.com>", "From: a@b.com", "From: 'Name' <a@b.com>".
+// The address in <…> wins; a "name" that is itself an address isn't a name.
+function parseFromLine(raw) {
+  const line = raw.match(/^\s*From:[ \t]*([^\n\r]*)/im);
+  if (!line) return null;
+  const text = line[1];
+  const bracketed = text.match(/<\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s*>/);
+  const bare = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const email = bracketed ? bracketed[1] : bare ? bare[0] : '';
+  if (!email) return null;
+  let name = (bracketed ? text.slice(0, bracketed.index) : '').trim().replace(/^["']+|["']+$/g, '').trim();
+  if (name.includes('@')) name = '';
+  return [line[0], name, email];
+}
+
 export function parseHeaders(raw) {
-  const from = raw.match(/^\s*From:\s*(?:["']?([^"'<\n\r]+?)["']?\s*)?<?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>?/im);
+  const from = parseFromLine(raw);
   const subject = raw.match(/^\s*Subject:\s*([^\n\r]+)/im);
   const date = raw.match(/^\s*(?:Date|Sent):\s*([^\n\r]+)/im);
   let parsedDate = date ? Date.parse(date[1].replace(/\s+at\s+/i, ' ')) : NaN;
@@ -189,10 +217,104 @@ export function latestMessage(raw) {
 const BLOCK_STOP = /^\s*(?:(?:best\s+|warm\s+|kind\s+)?regards|thanks|thank you|sincerely|please|kindly|as per|note\b|from:|sent:|to:|cc:|subject:)/i;
 const OTHER_LABEL = /^\s*[A-Za-z][A-Za-z .\/()&-]{1,40}\s*[:：]\s*\S/;
 
+// The customer's own office address, from their signature. Two layouts seen:
+//   a: Kadachanaa … Private Limited | Unit#C209, 2nd Floor, … Navi Mumbai | 400614, India
+//   A: VIJAY GLOBAL FORWARDERS & SUPPLY CHAIN SOLUTIONS
+//   722, 7th Floor, B Wing, Pranik Chambers, Sakinaka,     (blank lines between)
+//   Andheri (East), Mumbai - 400072
+// Also "Address: …" / "Office: …". Pickup/factory addresses are a separate field.
+const CONTACT_LINE = /^\s*(?:[mepwtf]|mob(?:ile)?|tel|ph(?:one)?|email|e-mail|web(?:site)?|fax|cell|gst(?:in)?)\s*[.:]|www\.|https?:|@/i;
+const PIN_LINE = /\b\d{3}\s?\d{3}\b|\bindia\b/i;
+const ADDRESS_WORDS = /\b(floor|road|rd\.?|marg|street|st\.|lane|nagar|chambers|tower|sector|plot|unit|building|bldg|estate|complex|midc|near|opp\.?|wing|house|park|centre|center|east|west)\b/i;
+
+export function customerAddressFrom(raw) {
+  const lines = raw.replace(/\r/g, '').split('\n');
+  const start = lines.findIndex(l => /^\s*(?:a|add|addr|address|office(?:\s+address)?|regd\.?\s+office)\s*[:\-]\s*\S/i.test(l)
+    && !/factory|pick\s*-?\s*up|supplier|collection/i.test(l));
+  if (start === -1) return unlabelledSignatureAddress(lines);
+
+  const parts = [];
+  let first = lines[start].replace(/^\s*[^:\-]+[:\-]\s*/, '').trim();
+  // "Company Name | address…": drop the company part (it has no digits).
+  const pieces = first.split('|').map(p => p.trim()).filter(Boolean);
+  const companyDropped = pieces.length > 1 && !/\d/.test(pieces[0]);
+  if (companyDropped) pieces.shift();
+  first = pieces.join(', ');
+  // "A: COMPANY NAME" alone on its line: the address starts on the next lines.
+  // After "Company |", whatever follows is the address, even just a city.
+  if (first && (companyDropped || /\d/.test(first) || ADDRESS_WORDS.test(first))) parts.push(first);
+
+  let blanks = 0;
+  for (let k = start + 1; k < lines.length && parts.length < 7; k++) {
+    const line = lines[k].trim();
+    if (!line) { if (++blanks > 2) break; continue; }
+    blanks = 0;
+    if (CONTACT_LINE.test(line) || BLOCK_STOP.test(line) || line.length > 120) break;
+    if (/polestar/i.test(line)) break;
+    if (!parts.length && !(/\d/.test(line) || ADDRESS_WORDS.test(line))) break;
+    parts.push(line);
+    if (PIN_LINE.test(line) && /\d{3}\s?\d{3}/.test(line)) break; // the PIN code ends the address
+  }
+  return parts.join(', ').replace(/\s*,\s*,+/g, ',').replace(/,\s*$/, '').replace(/\s+/g, ' ').trim().slice(0, 250);
+}
+
+// A signature without labels: Name / Title / Company / "Plot 12, GIDC Sanand,
+// Ahmedabad - 382110" / Tel. The line with a 6-digit PIN, within a few lines of
+// the sign-off, plus the address lines just above it.
+function unlabelledSignatureAddress(lines) {
+  for (let s = 0; s < lines.length; s++) {
+    if (!/^\s*(?:(?:best|warm|kind)\s+)?regards|^\s*thanks|^\s*thank you|^\s*sincerely/i.test(lines[s])) continue;
+    for (let p = s + 1; p < Math.min(lines.length, s + 20); p++) {
+      const line = lines[p].trim();
+      if (!line || CONTACT_LINE.test(line) || /\+\d/.test(line) || !/\b\d{3}\s?\d{3}\b/.test(line)) continue;
+      const parts = [line];
+      // Walk up over the address lines (signatures often have blank lines between them).
+      for (let k = p - 1, blanks = 0; k > s && parts.length < 4; k--) {
+        const above = lines[k].trim();
+        if (!above) { if (++blanks > 1) break; continue; }
+        blanks = 0;
+        if (CONTACT_LINE.test(above) || /\b(?:pvt|private|ltd|limited|llp|inc)\b/i.test(above)) break;
+        if (!(/\d/.test(above) || ADDRESS_WORDS.test(above))) break;
+        parts.unshift(above);
+      }
+      return parts.join(', ').replace(/\s+/g, ' ').replace(/,\s*,+/g, ',').replace(/,(?=\S)/g, ', ').trim().slice(0, 250);
+    }
+  }
+  return '';
+}
+
+// Package dimensions, one size or several (one line per box):
+//   Dimensions: 110 × 110 × 100 cm
+//   Dimension :                          <- label alone, sizes below
+//   L-1140mm, *W-750mm, *H- 830mm
+//   L-1370mm, *W-575mm, *H- 620mm        (blank lines between are fine)
+// Sizes are joined with "; " in the order written.
+const DIM_LINE = /\d\s*(?:mm|cm|m|in|inch|")?\s*[x×*]\s*\d|\b[LWH]\s*[-:=.]?\s*\d/i;
+
+function dimensionsFrom(raw) {
+  const lines = raw.replace(/\r/g, '').split('\n');
+  const start = lines.findIndex(l => /^[\s>*•-]*(?:box|carton|package|pkg|cargo)?\s*(?:dimensions?|dims|measurements?)\b(?!.*\bcbm\b)\s*(?:\([^)]*\))?\s*[:\-–]/i.test(l));
+  if (start === -1) return '';
+  const clean = (s) => s.replace(/\*/g, '').replace(/\s*-\s*(?=\d)/g, '-').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  const sizes = [];
+  const inline = lines[start].replace(/^[^:\-–]*[:\-–]\s*/, '').trim();
+  if (inline) sizes.push(clean(inline));
+  let blanks = 0;
+  for (let k = start + 1; k < lines.length && sizes.length < 30; k++) {
+    const line = lines[k].trim();
+    if (!line) { if (++blanks > 2) break; continue; }
+    blanks = 0;
+    if (!DIM_LINE.test(line) || /\b(?:cbm|kgs?|weight)\b/i.test(line)) break;
+    sizes.push(clean(line.replace(/^[\s>*•-]+/, '')));
+  }
+  return sizes.join('; ').slice(0, 400);
+}
+
 function labelBlock(raw, names) {
   const lines = raw.replace(/\r/g, '').split('\n');
   for (const n of names) {
-    const re = new RegExp(`^[\\s>*•\\-]*${n}\\s*(?:\\([^)]*\\))?\\s*[:：\\-–]\\s*(.*)$`, 'i');
+    // "Pickup address:" / "PICK UP ADDRESS." (a full stop works too)
+    const re = new RegExp(`^[\\s>*•\\-]*${n}\\s*(?:\\([^)]*\\))?\\s*[:：.\\-–]\\s*(.*)$`, 'i');
     const start = lines.findIndex(l => re.test(l));
     if (start === -1) continue;
     const parts = [];
@@ -223,7 +345,7 @@ const GENERIC_PKG = /^(packages?|pkgs?)$/i;
 // "Packing: wooden crates", or just "Packing: pallets".
 function packagesFrom(raw, label) {
   const counted = raw.match(new RegExp(`\\b(\\d[\\d,]*)\\s*(?:nos?\\.?\\s*(?:of\\s+)?)?(${PKG_KIND})\\b`, 'i'));
-  const labelled = raw.match(new RegExp(`(?:no\\.?\\s*of|number\\s*of|total|qty\\.?\\s*(?:of)?)?\\s*\\b(${PKG_KIND})\\s*[:\\-–]\\s*(\\d[\\d,]*)(?:\\s*(${PKG_KIND})\\b)?`, 'i'));
+  const labelled = raw.match(new RegExp(`(?:no\\.?\\s*of|number\\s*of|total|qty\\.?\\s*(?:of)?)?\\s*\\b(${PKG_KIND})\\s*[:\\-–]\\s*(\\d[\\d,]*)(?:[ \\t]*(${PKG_KIND})\\b)?`, 'i'));
   const packing = label(['Packing(?:\\s+Type)?', 'Packaging(?:\\s+Type)?', 'Package Type', 'Type of Packing', 'Packing Details']);
   const kindFromPacking = (packing.match(new RegExp(PKG_KIND, 'i')) || [])[0] || '';
 
@@ -244,7 +366,8 @@ function packagesFrom(raw, label) {
 
 // HSN / HS code anywhere in the email: "HSN CODE: 84678900", "(HSN# 8455300000)",
 // "HS Code No. 8455", "HSN/SAC - 8455", "H.S. code 845530".
-const HSN_RE = /\b(?:HSN|H\.?S\.?)(?:\s*\/\s*SAC)?\s*(?:code|no\.?|number)?\s*(?:no\.?)?\s*[#:.\-–]?\s*(\d{4,10})\b/i;
+// The digits may be grouped: "3919 9090", "3919.90.90" (spaces/dots are removed after).
+const HSN_RE = /\b(?:HSN|H\.?S\.?)(?:\s*\/\s*SAC)?\s*(?:code|no\.?|number)?\s*(?:no\.?)?\s*[#:.\-–]?\s*(\d{4}(?:[ .]?\d{2}){0,3})\b/i;
 
 // Shared mailboxes ("Import Customer Service", "CS Desk") aren't a person to address.
 const GENERIC_SENDER = /\b(customer\s*service|import|export|desk|team|info|sales|operations|ops|support|accounts|enquir|inquir|logistics|booking|admin|cs)\b/i;
@@ -263,9 +386,24 @@ function legalNameFromSignature(raw, email) {
   const re = /([A-Z][A-Za-z0-9&.'\- ]{1,70}?\b(?:Private Limited|Pvt\.?\s*Ltd\.?|Limited|Ltd\.?|LLP|Inc\.?|LLC|GmbH|Co\.))/g;
   for (const m of raw.matchAll(re)) {
     const name = m[1].replace(/^(?:a|e|w|p|t)\s*:\s*/i, '').trim();
-    if (name.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(base)) return name;
+    if (belongsToDomain(name, base)) return name;
+  }
+  // Signature line "A: VIJAY GLOBAL FORWARDERS & SUPPLY CHAIN SOLUTIONS" (vgfscs.in)
+  // or "Company: …", even without "Pvt Ltd".
+  for (const m of raw.matchAll(/^[ \t]*(?:a|company|co\.?)[ \t]*:[ \t]*([^|\n\r,]{3,80})/gim)) {
+    const name = m[1].trim();
+    if (/[A-Za-z]/.test(name) && !/\d{3,}/.test(name) && belongsToDomain(name, base)) return name;
   }
   return '';
+}
+
+// "Kadachanaa Shipping…" for kadachanaa.com, or initials: "Vijay Global
+// Forwarders & Supply Chain Solutions" for vgfscs.in.
+function belongsToDomain(name, base) {
+  const flat = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (flat.startsWith(base)) return true;
+  const initials = name.split(/[\s&,.\-/]+/).filter(w => /^[A-Za-z]/.test(w)).map(w => w[0].toLowerCase()).join('');
+  return initials.length >= 3 && (initials === base || initials.startsWith(base) || base.startsWith(initials));
 }
 
 function companyFromEmail(email) {
@@ -303,11 +441,30 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const podText = label(['POD', 'Port of Discharge', 'Discharge Port', 'Destination Port', 'Port of Destination']);
   if (polText) polInfo = portFromLabel(polText);
   if (podText) podInfo = portFromLabel(podText);
+  // A labelled port that isn't a known port name ("Nearest suitable seaport to
+  // … Zhongshan City, Guangdong") is kept as written for the rep, rather than
+  // guessing a port from elsewhere in the email.
+  const asWritten = (text) => ({ name: text.replace(/\s+/g, ' ').slice(0, 120), code: '' });
+  if (polText && !polInfo) polInfo = asWritten(polText);
+  if (podText && !podInfo) podInfo = asWritten(podText);
   if (!polInfo || !podInfo) {
     const route = raw.match(/\b(?:from|ex)\s+([A-Za-z][A-Za-z .\/]{2,30}?)\s+(?:to|for)\s+([A-Za-z][A-Za-z .\/]{2,30}?)(?=\s*(?:port|[,.;()\n]|$))/i);
     if (route) {
       polInfo ||= portFromLabel(route[1]);
       podInfo ||= portFromLabel(route[2]);
+    }
+  }
+  // "Ningbo to Nhava Sheva", "Mundra - Jebel Ali", "Shanghai ➔ Chennai" without
+  // "from": two known ports joined by to / → / -.
+  if (!polInfo || !podInfo) {
+    for (const m of raw.matchAll(/([A-Za-z][A-Za-z .]{1,30}?)\s*(?:\bto\b|-+>|➔|→|–|\s-\s)\s*([A-Za-z][A-Za-z .]{1,30})/gi)) {
+      const from = findPortAtEnd(m[1]);
+      const to = findPort(m[2].slice(0, 25));
+      if (from && to && from.code !== to.code) {
+        polInfo ||= { name: from.name, code: from.code };
+        podInfo ||= { name: to.name, code: to.code };
+        break;
+      }
     }
   }
   // Without labels, assume an export (India -> abroad) unless the email talks about imports.
@@ -374,8 +531,10 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   }
 
   // "2.9 CBM" or a labelled line "CBM: 2.9" / "Volume - 2.9".
-  const volume = raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i)
-    || raw.match(/^[\s>*•-]*(?:total\s+)?(?:cbm|volume|vol\.?|measurement)\s*(?:\(\s*cbm\s*\))?\s*[:\-–]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/im);
+  // A labelled line in the email ("Volume : 3.300CBM") wins over a figure in the
+  // subject or a sentence ("… 3.330CBM").
+  const volume = raw.match(/^[\s>*•-]*(?:total\s+)?(?:cbm|volume|vol\.?|measurement)\s*(?:\(\s*cbm\s*\))?\s*[:\-–]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/im)
+    || raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i);
   const volumeCbm = volume ? parseFloat(volume[1].replace(/,/g, '')) : 0;
 
   // A volume in CBM with no container named means the cargo goes LCL.
@@ -389,6 +548,9 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     'Commodity(?:\\s+Description)?', 'Cargo Description', 'Description of Goods', 'Goods Description', 'Product Description',
     'Nature of (?:Goods|Cargo)', 'Item Description', 'Description', 'Desc\\.?', 'Goods', 'Products?', 'Items?', 'Material', 'Cargo(?:\\s+Details)?',
   ])
+    // Or written inside a sentence: "Please quote as per subject. Commodity: LED lights. Ex works …"
+    || (raw.match(/\b(?:commodity|description of goods|goods description)\s*[:\-–]\s*([^.\n;]{2,80})/i) || [])[1]?.trim() || '';
+  const commodityClean = commodity
     .replace(/^(?:description|details|desc\.?)\s*[:\-–]\s*/i, '')
     // The HSN code goes in its own field, so take it (and stray "*") out of the description.
     .replace(/\s*[([]\s*(?:HSN|H\.?S\.?)(?=[\s#:.\-–/]|code|no)[^)\]]*[)\]]/i, ' ')
@@ -400,28 +562,27 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   // ex-works basis only") comes before the older text it corrects.
   // Codes must be capitals (so "dap fertiliser" isn't DAP); "Ex works" may be any case.
   const incoMatches = [
-    // The place ("FOB Mundra") must be on the same line, so the first word of the
-    // next line ("FOB" then "Commodity: …") isn't taken as the place.
-    raw.match(/\b(FOB|CIF|CFR|CNF|C&F|EXW|FCA|DDP|DAP|CPT|CIP)\b(?:[ \t]+([A-Z][a-zA-Z]+))?/),
-    raw.match(/\b(ex[\s-]?works?)\b(?:[ \t]+([A-Z][a-zA-Z]+))?/i),
+    raw.match(/\b(FOB|CIF|CFR|CNF|C&F|EXW|FCA|DDP|DAP|CPT|CIP)\b/),
+    raw.match(/\b(ex[\s-]?works?)\b/i),
   ].filter(Boolean).sort((a, b) => a.index - b.index);
   const inco = incoMatches[0];
-  const incoCode = inco ? (/^EX/i.test(inco[1]) ? 'EXW' : /^C&F$/i.test(inco[1]) ? 'CFR' : inco[1].toUpperCase()) : '';
-  const incoPlace = inco && inco[2] && !/^(Incoterms?|Inco|Terms?|Conditions?|Basis\w*|Only|Rates?|Price|Prices|Value|Charges?|Quote|Quotation|Offer|Shipment|Cargo|Delivery|Port|POL|POD|Origin|Destination|Commodity|Weight|Volume|CBM|Pickup|Pick|And|Or|To|From|For|With|Please|Kindly|The|We|Our|As|Is|Are)$/i.test(inco[2]) ? inco[2] : '';
-  const incoterms = [incoCode, incoPlace].filter(Boolean).join(' ');
+  // Just the term ("FOB"), not the place after it ("FOB Yokohama"); the ports are their own fields.
+  const incoterms = inco ? (/^EX/i.test(inco[1]) ? 'EXW' : /^C&F$/i.test(inco[1]) ? 'CFR' : inco[1].toUpperCase()) : '';
 
   // Cargo details import inquiries usually give.
   const packages = packagesFrom(raw, label);
   const hsn = raw.match(HSN_RE);
-  const dimensions = label(['Box Dimensions?', 'Carton Dimensions?', 'Package Dimensions?', 'Dimensions?', 'Dims']);
+  const dimensions = dimensionsFrom(raw);
   const pickupAddress = labelBlock(raw, ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
+  const customerAddress = customerAddressFrom(raw);
 
   const freeDays = raw.match(/(\d{1,3})\s*days?\s*(?:of\s*)?(?:free|combined|detention|demurrage|det\b|dem\b)|free\s*(?:time|days)[^0-9\n]{0,25}(\d{1,3})/i);
   const ready = label(['Cargo Readiness Date', 'Cargo Ready Date', 'Cargo Readiness', 'Ready Date', 'Readiness']);
 
   return {
     shipperName,
-    contactPerson,
+    // No name anywhere in the email (e.g. a shared inbox): show the address instead.
+    contactPerson: contactPerson || headers.fromEmail,
     contactEmail: headers.fromEmail,
     contactPhone: phone ? phone[1].trim() : '',
     gstin: gst ? gst[1].toUpperCase() : '',
@@ -434,10 +595,11 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     containerType,
     containerCount,
     packages,
-    hsnCode: hsn ? hsn[1] : '',
+    hsnCode: hsn ? hsn[1].replace(/[ .]/g, '') : '',
     dimensions,
     pickupAddress,
-    commodity,
+    customerAddress,
+    commodity: commodityClean,
     grossWeightKg,
     volumeCbm,
     incoterms,
@@ -445,8 +607,9 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     freeDaysRequested: freeDays ? `${freeDays[1] || freeDays[2]} days` : '',
     specialRequirements: [
       /\bhaz(?:ardous)?\b|\bimo\b|\bdg cargo\b|\bun\s?\d{4}\b/i.test(raw) && 'Hazardous cargo mentioned',
-      /pick[\s-]?up address|factory address|door pick[\s-]?up|pick[\s-]?up from/i.test(raw) && 'Pickup from supplier needed',
-      /charges?\s+separately|separate(?:ly)?\s+(?:origin|destination|local)|origin,?\s*destination,?\s*(?:and\s+)?cfs/i.test(raw) && 'Show origin, destination and CFS charges separately',
+      /pick[\s-]?up address|factory address|door pick[\s-]?up|pick[\s-]?up from|origin pick[\s-]?up/i.test(raw) && 'Pickup from supplier needed',
+      /charges?\s+separately|separate(?:ly)?\s+(?:origin|destination|local)|origin,?\s*destination,?\s*(?:and\s+)?cfs|(?:all[\s-]?inclusive|charges?)\s+break[\s-]?up|break[\s-]?down/i.test(raw) && 'Show origin, destination and CFS charges separately',
+      /export customs clearance|customs clearance at origin|origin clearance/i.test(raw) && 'Include export customs clearance at origin',
     ].filter(Boolean).join('; '),
     urgent: /\burgent\b|\basap\b|\bat the earliest\b/i.test(raw),
   };

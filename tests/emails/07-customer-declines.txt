@@ -1,0 +1,22 @@
+From: Rakesh Patel <rakesh.p@sunglowtextiles.com>
+Subject: Re: Rate request - Mundra to Jebel Ali [Ref INQ-2026-1002]
+
+Hi,
+
+Thanks for the offer. We have gone with another forwarder for this shipment.
+
+Rakesh
+
+=== EXPECTED ===
+{
+  "kind": "declined",
+  "matches": "INQ-2026-1002",
+  "declineReason": "went_with_competitor",
+  "existing": [
+    {
+      "id": "INQ-2026-1002",
+      "contactEmail": "rakesh.p@sunglowtextiles.com",
+      "emailSubject": "Rate request - Mundra to Jebel Ali"
+    }
+  ]
+}

@@ -144,6 +144,7 @@ export function exportInquiriesToExcel(inquiries, opts = {}) {
     'Contact Person': i.contactPerson || '',
     'Email': i.contactEmail || '',
     'Phone': i.contactPhone || '',
+    'Customer Address': i.customerAddress || '',
     'POL': i.pol || '',
     'POD': i.pod || '',
     'Mode': i.routingMode || '',

@@ -4,14 +4,16 @@ import {
   Plus, 
   ChevronDown,
   LogOut,
-  UserPen
+  UserPen,
+  PenLine
 } from 'lucide-react';
 
 export default function Header({
   onOpenIntake,
   currentUser,
   onSignOut,
-  onEditProfile
+  onEditProfile,
+  onManageSignatures
 }) {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
@@ -70,6 +72,14 @@ export default function Header({
                 >
                   <UserPen size={14} /> Edit my name & role
                 </button>
+                {onManageSignatures && (
+                  <button
+                    onClick={() => { setUserDropdownOpen(false); onManageSignatures(); }}
+                    className="w-full text-left px-3 py-2 text-[13.5px] hover:bg-[rgba(255,160,140,0.12)] text-slate-300 hover:text-[#FFA08C] flex items-center gap-2"
+                  >
+                    <PenLine size={14} /> Email signatures
+                  </button>
+                )}
                 {onSignOut && (
                   <button
                     onClick={() => { setUserDropdownOpen(false); onSignOut(); }}

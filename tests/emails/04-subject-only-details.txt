@@ -1,0 +1,27 @@
+Subject: LCL 2.5 CBM Ningbo to Nhava Sheva - 400 kgs - pls quote
+From: Vivek Shah <vivek@arcadia-traders.com>
+
+Dear Sir,
+
+Please quote as per subject. Commodity: LED lights. Ex works supplier warehouse.
+
+Regards
+Vivek
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "contactEmail": "vivek@arcadia-traders.com",
+      "pol": "CNNGB",
+      "pod": "INNSA",
+      "direction": "Import",
+      "containerType": "LCL",
+      "volumeCbm": 2.5,
+      "grossWeightKg": 400,
+      "commodity": "LED lights",
+      "incoterms": "EXW"
+    }
+  ]
+}

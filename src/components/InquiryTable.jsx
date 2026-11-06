@@ -47,11 +47,9 @@ export default function InquiryTable({
             <th className="w-10 text-center">#</th>
             <th>INQ REF NO</th>
             <th>DATE</th>
-            <th>SHIPPER & GSTIN</th>
+            <th>CUSTOMER</th>
             <th>ROUTE (POL ➔ POD)</th>
-            <th>CONTAINER / MODE</th>
-            <th>COMMODITY</th>
-            <th>GROSS WT</th>
+            <th>MODE</th>
             <th>QUOTED RATE</th>
             <th>STATUS</th>
             <th className="w-20 text-center">ACTIONS</th>
@@ -60,7 +58,7 @@ export default function InquiryTable({
         <tbody>
           {inquiries.length === 0 ? (
             <tr>
-              <td colSpan={11} className="text-center py-16 px-4 bg-[#0d0b0a]/80">
+              <td colSpan={8} className="text-center py-16 px-4 bg-[#0d0b0a]/80">
                 <div className="max-w-md mx-auto flex flex-col items-center justify-center space-y-3">
                   <div className="w-11 h-11 rounded-2xl bg-[rgba(255,160,140,0.12)] border border-[#FFA08C]/35 flex items-center justify-center text-[#FFA08C] shadow-[0_0_16px_rgba(255,160,140,0.25)]">
                     <Layers size={20} />
@@ -118,13 +116,10 @@ export default function InquiryTable({
                     </span>
                   </td>
 
-                  {/* Col 3: SHIPPER & GSTIN */}
+                  {/* Col 3: CUSTOMER (contact, GSTIN, commodity, weight… are in the inquiry details) */}
                   <td>
-                    <div className="font-semibold text-white max-w-[200px] truncate" title={item.shipperName}>
+                    <div className="font-semibold text-white max-w-[260px] truncate" title={item.shipperName}>
                       {item.shipperName}
-                    </div>
-                    <div className="font-mono text-[12px] text-[#dcd2cd]">
-                      {item.gstin || 'N/A'}
                     </div>
                   </td>
 
@@ -140,25 +135,14 @@ export default function InquiryTable({
                     )}
                   </td>
 
-                  {/* Col 5: CONTAINER */}
+                  {/* Col 5: MODE */}
                   <td>
                     <span className="font-semibold text-[#FFA08C]">
                       {item.containerType}
                     </span>
-                  </td>
-
-                  {/* Col 6: COMMODITY */}
-                  <td>
-                    <div className="text-[#d4d4d4] max-w-[150px] truncate" title={item.commodity}>
-                      {item.commodity}
-                    </div>
-                  </td>
-
-                  {/* Col 7: GROSS WT */}
-                  <td>
-                    <span className="font-mono font-bold text-white">
-                      {item.grossWeightKg ? `${item.grossWeightKg.toLocaleString()} kg` : '—'}
-                    </span>
+                    {/LCL/i.test(item.containerType || '') && Number(item.volumeCbm) > 0 && (
+                      <span className="ml-1.5 font-mono text-[12px] text-[#dcd2cd]">{item.volumeCbm} CBM</span>
+                    )}
                   </td>
 
                   {/* Col 8: QUOTED RATE */}

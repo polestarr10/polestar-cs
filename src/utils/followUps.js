@@ -1,7 +1,8 @@
 // Follow-ups when the customer goes quiet after we wrote to them, and alerts
 // for quotes about to run past their validity date.
 import { isAwaitingReply } from '../hooks/useReplyReminders';
-import { formatRate } from './replyDraft';
+import { formatRate, greetingFor } from './replyDraft';
+import { pickSignature } from './signatures';
 
 export const FOLLOW_UP_AFTER_HOURS = 24;
 export const MAX_FOLLOW_UPS = 3;
@@ -90,8 +91,8 @@ export function buildFollowUpSubject(inquiry) {
   return `Follow-up: Freight Quotation ${inquiry.id}: ${inquiry.polCode || inquiry.pol} to ${inquiry.podCode || inquiry.pod}`;
 }
 
-export function buildFollowUpBody(inquiry, number, currentUser) {
-  const name = (inquiry.contactPerson || '').split(/\s+-\s+/)[0].trim() || 'Sir/Madam';
+export function buildFollowUpBody(inquiry, number, currentUser, signatureId) {
+  const name = greetingFor(inquiry.contactPerson);
   const route = `${inquiry.pol || inquiry.polCode} to ${inquiry.pod || inquiry.podCode}`;
   const rate = inquiry.quotedRate || (inquiry.quotedAmountTotal > 0 ? formatRate(inquiry.quotedCurrency, inquiry.quotedAmountTotal) : '');
   const validity = inquiry.quoteValidity ? fmtDate(inquiry.quoteValidity) : '';
@@ -126,6 +127,6 @@ export function buildFollowUpBody(inquiry, number, currentUser) {
     ];
   }
 
-  const signature = [currentUser?.name || 'Polestar CS Team', currentUser?.role, 'Polestar Consolidators & Freight Forwarders Pvt Ltd'].filter(Boolean);
+  const signature = pickSignature(currentUser, signatureId).text.split('\n');
   return [`Dear ${name},`, '', ...lines.filter(l => l !== null), '', 'Best regards,', ...signature].join('\n');
 }

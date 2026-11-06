@@ -7,6 +7,8 @@ const REF_RE = /INQ-\d{4}-\d{4,6}/i;
 const MAX_IMAGE_SIDE = 2000;
 const MAX_PDF_BYTES = 3.5 * 1024 * 1024; // keeps the request under Vercel's 4.5 MB body limit
 
+import { pickSignature } from '../utils/signatures';
+
 export class EmailAIError extends Error {
   constructor(message, code) {
     super(message);
@@ -167,6 +169,7 @@ export function resultToInquiry(result, { existing, currentUser, rawText, screen
     hsnCode: s.hsnCode || '',
     dimensions: s.dimensions || '',
     pickupAddress: s.pickupAddress || '',
+    customerAddress: s.customerAddress || '',
     commodity: s.commodity,
     grossWeightKg: Number(s.grossWeightKg) || 0,
     volumeCbm: Number(s.volumeCbm) || 0,
@@ -188,8 +191,8 @@ export function resultToInquiry(result, { existing, currentUser, rawText, screen
   };
 }
 
-export function withSignature(body, currentUser) {
-  const signature = [currentUser?.name, currentUser?.role, 'Polestar Consolidators & Freight Forwarders Pvt Ltd'].filter(Boolean).join('\n');
+export function withSignature(body, currentUser, signatureId) {
+  const signature = pickSignature(currentUser, signatureId).text;
   return (body || '').replace('{{SIGNATURE}}', signature);
 }
 

@@ -1,0 +1,55 @@
+Fw: RFQ - Busan to Nhava Sheva - Rollers
+
+From: Ankit Rao <ankit@polestarfreight.com>
+Sent: Thursday, November 5, 2026 11:40 AM
+To: cs@polestarfreight.com
+Subject: Fw: RFQ - Busan to Nhava Sheva - Rollers
+
+Pls quote.
+
+From: Sales Desk <sales@ironcrest-eng.com>
+Sent: Thursday, November 5, 2026 9:15 AM
+To: ankit@polestarfreight.com
+Subject: RFQ - Busan to Nhava Sheva - Rollers
+
+Dear Ankit,
+
+Kindly quote best rate for the following:
+
+Port of Loading: Busan, Korea
+Port of Discharge: Nhava Sheva
+Description: ROLLER FOR STRIP ROLLING MILL (HSN# 8455300000)*
+Packing: 2 wooden crates
+Gross Wt: 3,450 kgs
+Volume: 5.2 cbm
+Terms: EXW
+
+Pickup address:
+Plant 3, 45 Hwajeon Industrial Road,
+Gangseo-gu, Busan 46744
+South Korea
+
+Thanks & regards,
+Sung-min Park
+Ironcrest Engineering Co. Ltd
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "contactEmail": "sales@ironcrest-eng.com",
+      "pol": "KRPUS",
+      "pod": "INNSA",
+      "direction": "Import",
+      "containerType": "LCL",
+      "commodity": "ROLLER FOR STRIP ROLLING MILL",
+      "hsnCode": "8455300000",
+      "packages": "2 wooden crates",
+      "grossWeightKg": 3450,
+      "volumeCbm": 5.2,
+      "incoterms": "EXW",
+      "pickupAddress": "Plant 3, 45 Hwajeon Industrial Road, Gangseo-gu, Busan 46744, South Korea"
+    }
+  ]
+}

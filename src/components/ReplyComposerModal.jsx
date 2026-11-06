@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2, Lock } from 'lucide-react';
+import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2, Lock, Plus, Trash2, PenLine } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
   initialDraftFields,
@@ -8,7 +8,22 @@ import {
   buildReplyBody,
   formatRate,
   findPlaceholders,
+  defaultCharges,
+  newCharge,
+  chargeableWM,
 } from '../utils/replyDraft';
+import { signatureList } from '../utils/signatures';
+import SignatureManager from './SignatureManager';
+
+const CURRENCIES = [['USD', '$'], ['INR', '₹'], ['EUR', '€']];
+
+// Per-container unit for an FCL quote, from the equipment typed in.
+function fclUnit(containerType) {
+  const c = containerType || '';
+  if (/reefer/i.test(c)) return "/ 40' Reefer";
+  if (/\b20/.test(c)) return "/ 20'GP";
+  return "/ 40'HC";
+}
 import { quoteRound } from '../utils/followUps';
 
 const CHANNEL_LABELS = { mailto: 'email app', gmail: 'Gmail', outlook: 'Outlook', manual: 'reply in mail client' };
@@ -24,15 +39,16 @@ function Field({ label, missing, children, className = '' }) {
   );
 }
 
-export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendReply, currentUser }) {
+export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendReply, currentUser, onSaveSignatures }) {
   const [f, setF] = useState(null);
+  const [managingSignatures, setManagingSignatures] = useState(false);
   const [subjectOverride, setSubjectOverride] = useState(null);
   const [bodyOverride, setBodyOverride] = useState(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (inquiry && isOpen) {
-      setF(initialDraftFields(inquiry));
+      setF(initialDraftFields(inquiry, currentUser));
       setSubjectOverride(null);
       setBodyOverride(null);
       setCopied(false);
@@ -56,6 +72,22 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
   const canSend = missing.length === 0 && placeholders.length === 0;
 
   const set = (key) => (e) => setF(prev => ({ ...prev, [key]: e.target.value }));
+  const lcl = f.format === 'LCL';
+  const wm = chargeableWM(f.volumeCbm, f.grossWeightKg);
+  const signatures = signatureList(currentUser);
+
+  // Switching format resets the rate unit and the charge lines to that format's set.
+  const switchFormat = (format) => setF(prev => ({
+    ...prev,
+    format,
+    rateUnit: format === 'LCL' ? '/ W/M' : fclUnit(prev.containerType),
+    minimum: format === 'LCL' ? (prev.minimum || '1 W/M') : '',
+    charges: defaultCharges(format, { ...inquiry, quotedCurrency: prev.currency }),
+    freeDays: format === 'LCL' ? '' : (prev.freeDays || '14 days combined demurrage/detention'),
+  }));
+  const setCharge = (id, key) => (e) => setF(prev => ({ ...prev, charges: prev.charges.map(c => (c.id === id ? { ...c, [key]: e.target.value } : c)) }));
+  const removeCharge = (id) => setF(prev => ({ ...prev, charges: prev.charges.filter(c => c.id !== id) }));
+  const addCharge = () => setF(prev => ({ ...prev, charges: [...prev.charges, newCharge('', lcl ? '/ W/M' : 'per container', prev.currency)] }));
 
   const markReplied = (channel) => {
     const now = new Date();
@@ -94,7 +126,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
         ...(inquiry.auditLog || []),
         {
           timestamp: now.toISOString(),
-          action: revised ? `Revised quotation sent, round ${round} (${rate})` : `Quotation reply sent via ${CHANNEL_LABELS[channel]} (${rate})`,
+          action: `${revised ? `Revised quotation sent, round ${round}` : `Quotation reply sent via ${CHANNEL_LABELS[channel]}`} (${f.format} ${rate}${
+            f.charges.filter(c => parseFloat(c.amount) > 0).map(c => ` + ${c.name} ${formatRate(c.currency, c.amount, c.unit)}`).join('')})`,
           by: currentUser?.name || 'CS Desk',
         },
       ],
@@ -178,21 +211,61 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
             </div>
 
             <div>
-              <div className="text-[13px] font-extrabold text-[#FFA08C] uppercase tracking-wider mb-2">2. Enter the quotation</div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-[13px] font-extrabold text-[#FFA08C] uppercase tracking-wider">2. Enter the quotation</div>
+                <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden" title="Quote format">
+                  {['FCL', 'LCL'].map(k => (
+                    <button key={k} type="button" onClick={() => f.format !== k && switchFormat(k)}
+                      className={`px-3.5 py-1 text-[13px] font-extrabold ${f.format === k ? 'bg-[#FFA08C] text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}>
+                      {k}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {lcl && (
+                <div className="text-[12.5px] text-[#b3a59e] mb-2">
+                  LCL: freight per W/M (1 CBM or 1,000 kg, whichever is higher).
+                  {wm > 0 && <> This shipment is <b className="text-white">{wm} W/M</b> ({Number(f.volumeCbm) || 0} CBM, {Number(f.grossWeightKg) || 0} kg).</>}
+                </div>
+              )}
               <div className="grid grid-cols-12 gap-2 mb-3">
                 <Field label="Currency" className="col-span-3">
                   <select value={f.currency} onChange={set('currency')} className="scm-select w-full font-extrabold text-[#FFA08C]">
-                    <option value="USD">USD ($)</option>
-                    <option value="INR">INR (₹)</option>
-                    <option value="EUR">EUR (€)</option>
+                    {CURRENCIES.map(([c, sym]) => <option key={c} value={c}>{c} ({sym})</option>)}
                   </select>
                 </Field>
-                <Field label="Freight rate" missing={missingKeys.has('rateAmount')} className="col-span-5">
-                  <input type="number" min="0" value={f.rateAmount} onChange={set('rateAmount')} className="scm-input w-full font-mono font-bold text-emerald-400" placeholder="e.g. 1450" />
+                <Field label="Ocean freight" missing={missingKeys.has('rateAmount')} className={lcl ? 'col-span-3' : 'col-span-5'}>
+                  <input type="number" min="0" value={f.rateAmount} onChange={set('rateAmount')} className="scm-input w-full font-mono font-bold text-emerald-400" placeholder={lcl ? 'e.g. 40' : 'e.g. 1450'} />
                 </Field>
-                <Field label="Per" className="col-span-4">
+                <Field label="Per" className={lcl ? 'col-span-3' : 'col-span-4'}>
                   <input value={f.rateUnit} onChange={set('rateUnit')} className="scm-input w-full" />
                 </Field>
+                {lcl && (
+                  <Field label="Minimum" className="col-span-3">
+                    <input value={f.minimum} onChange={set('minimum')} className="scm-input w-full" placeholder="1 W/M" />
+                  </Field>
+                )}
+              </div>
+
+              <div className="mb-3 rounded-lg border border-[#342b27] overflow-hidden">
+                <div className="px-3 py-1.5 bg-[#110e0d] text-[12.5px] font-extrabold text-[#dcd2cd] flex items-center justify-between">
+                  <span>Other charges <span className="font-normal text-[#8a7d77]">(lines left blank are not put in the reply)</span></span>
+                  <button type="button" onClick={addCharge} className="text-[#FFA08C] hover:text-white flex items-center gap-1"><Plus size={12} />Add line</button>
+                </div>
+                <div className="divide-y divide-[#1f1916]">
+                  {f.charges.map(c => (
+                    <div key={c.id} className="grid grid-cols-12 gap-1.5 p-1.5 items-center">
+                      <input value={c.name} onChange={setCharge(c.id, 'name')} className="scm-input col-span-5 !py-1 text-[13px]" placeholder="Charge name" />
+                      <select value={c.currency} onChange={setCharge(c.id, 'currency')} className="scm-select col-span-2 !py-1 text-[13px]">
+                        {CURRENCIES.map(([cur]) => <option key={cur} value={cur}>{cur}</option>)}
+                      </select>
+                      <input type="number" min="0" value={c.amount} onChange={setCharge(c.id, 'amount')} className="scm-input col-span-2 !py-1 text-[13px] font-mono" placeholder="Amount" />
+                      <input value={c.unit} onChange={setCharge(c.id, 'unit')} className="scm-input col-span-2 !py-1 text-[13px]" placeholder="per …" />
+                      <button type="button" onClick={() => removeCharge(c.id)} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove line"><Trash2 size={13} /></button>
+                    </div>
+                  ))}
+                  {f.charges.length === 0 && <div className="px-3 py-2 text-[12.5px] text-[#8a7d77]">No other charges.</div>}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Carrier">
@@ -201,7 +274,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                 <Field label="Transit time">
                   <input value={f.transitTime} onChange={set('transitTime')} className="scm-input w-full" placeholder="e.g. 5–7 days" />
                 </Field>
-                <Field label="Free time at POD">
+                <Field label={lcl ? 'Free storage at CFS' : 'Free time at POD'}>
                   <input value={f.freeDays} onChange={set('freeDays')} className="scm-input w-full" />
                 </Field>
                 <Field label="Valid until">
@@ -230,8 +303,19 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
               )}
             </div>
 
-            <div className="text-sm text-[#dcd2cd]">
-              To: <span className="font-mono font-bold text-white">{f.contactEmail || '—'}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[#dcd2cd]">
+              <span>To: <span className="font-mono font-bold text-white">{f.contactEmail || '—'}</span></span>
+              <span className="flex items-center gap-1.5">
+                Signature
+                <select value={f.signatureId} onChange={set('signatureId')} className="scm-select !py-1 text-[13px]">
+                  {signatures.map(sig => <option key={sig.id} value={sig.id}>{sig.name}{sig.isDefault ? ' (default)' : ''}</option>)}
+                </select>
+                {onSaveSignatures && (
+                  <button type="button" onClick={() => setManagingSignatures(true)} className="btn-dark !py-1 text-[13px]" title="Add or edit signatures">
+                    <PenLine size={12} /><span>Manage</span>
+                  </button>
+                )}
+              </span>
             </div>
             {missing.length > 0 ? (
               <div className="relative flex-1 min-h-[400px] rounded-lg border border-amber-400/50 overflow-hidden">
@@ -295,6 +379,20 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
           </div>
         </div>
       </div>
+
+      <SignatureManager
+        isOpen={managingSignatures}
+        onClose={() => setManagingSignatures(false)}
+        currentUser={currentUser}
+        onSave={async (list) => {
+          const err = await onSaveSignatures(list);
+          if (!err) {
+            const keep = list.find(sig => sig.id === f.signatureId) || list.find(sig => sig.isDefault) || list[0];
+            setF(prev => ({ ...prev, signatureId: keep ? keep.id : 'standard' }));
+          }
+          return err;
+        }}
+      />
     </div>
   );
 }

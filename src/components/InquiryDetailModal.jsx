@@ -259,6 +259,12 @@ ${buildReplyBody(formData, draftFields)}`;
 
               </div>
 
+              {/* Customer address */}
+              <div>
+                <label className="text-[12.5px] text-[#b3a59e] block">Customer Address</label>
+                <textarea rows={2} value={formData.customerAddress || ''} onChange={(e) => handleFieldChange('customerAddress', e.target.value)} className="scm-input text-sm w-full" placeholder="The client's office address" />
+              </div>
+
               {/* Cargo & pickup */}
               <div className="p-3 rounded-xl bg-[#120f0e] border border-[#3a302b] space-y-2">
                 <div className="text-[12.5px] font-extrabold text-[#FFA08C] uppercase tracking-wider border-b border-[#3a302b] pb-1">

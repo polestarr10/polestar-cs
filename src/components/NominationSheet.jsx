@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Search, X } from 'lucide-react';
 import {
   getNominations,
   periodRange,
@@ -24,7 +24,7 @@ function EditableCell({ value, type = 'text', onSave, className = '' }) {
       if (String(draft) !== String(value ?? '')) onSave(draft);
     };
     return (
-      <td className="sheet-cell-editing">
+      <td className="sheet-cell-editing" onClick={(e) => e.stopPropagation()}>
         <input
           autoFocus
           type={type}
@@ -50,7 +50,65 @@ function EditableCell({ value, type = 'text', onSave, className = '' }) {
   );
 }
 
+// Everything about one booking. Fields save as you leave them.
+function BookingDetails({ n, onClose, onEdit, onViewInquiry }) {
+  const field = (label, key, value, opts = {}) => (
+    <label className={`block ${opts.wide ? 'col-span-2' : ''}`}>
+      <span className="text-[12px] font-bold text-[#b3a59e] block mb-0.5">{label}</span>
+      <input
+        type={opts.type || 'text'}
+        defaultValue={value ?? ''}
+        key={`${n.id}-${key}-${value}`}
+        onBlur={(e) => { if (String(e.target.value) !== String(value ?? '')) onEdit({ [key]: opts.type === 'number' ? Number(e.target.value) || 0 : e.target.value.trim() }); }}
+        className="scm-input w-full text-sm"
+      />
+    </label>
+  );
+  const info = (label, value) => (
+    <div>
+      <div className="text-[12px] font-bold text-[#b3a59e]">{label}</div>
+      <div className="text-sm text-white font-semibold">{value || '—'}</div>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-[#0d0b0a] border border-emerald-500/50 rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+          <span className="text-[15px] font-extrabold text-white uppercase tracking-wider">Booking: <span className="font-mono text-[#FFA08C]">{n.id}</span></span>
+          <button onClick={onClose} className="p-1 rounded-full bg-[#181412] text-slate-400 hover:text-white"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {info('Customer', n.shipperName)}
+            {info('Confirmed', formatDay(n.confirmedAt, { day: '2-digit', month: 'short', year: 'numeric' }))}
+            {info('Route', `${n.pol} ➔ ${n.pod}`)}
+            {info('Commodity', n.commodity)}
+            {info('Gross weight', n.grossWeightKg ? `${n.grossWeightKg.toLocaleString()} kg` : '')}
+            {info('CBM / TEU', `${n.volumeCbm || '—'} CBM · ${fmtTeu(n.teu)} TEU`)}
+            {info('Final rate', n.rate)}
+            {info('Handled by', n.handledBy)}
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[#342b27]">
+            {field('Booking / nomination no.', 'bookingRef', n.bookingRef)}
+            {field('Confirmed by (customer)', 'confirmedBy', n.contactPerson)}
+            {field('Equipment', 'containerType', n.equipment)}
+            {field('No. of containers', 'containerCount', n.containers, { type: 'number' })}
+            {field('Carrier', 'carrier', n.carrier)}
+            {field('ETD', 'etd', n.etd, { type: 'date' })}
+            {field('Remarks', 'remarks', n.remarks, { wide: true })}
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-[#342b27] bg-[#110e0d] flex justify-between gap-2">
+          <button onClick={onViewInquiry} className="btn-dark">Open full inquiry</button>
+          <button onClick={onClose} className="btn-green">Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NominationSheet({ inquiries, onViewDetails, onAddNomination, onEditNomination, currentUser }) {
+  const [openId, setOpenId] = useState(null);
   const [period, setPeriod] = useState('week');
   const [anchor, setAnchor] = useState(() => new Date());
   const [search, setSearch] = useState('');
@@ -112,8 +170,17 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
         <span className="text-white font-extrabold">{sum.containers}</span> containers ·{' '}
         <span className="text-white font-extrabold">{fmtTeu(sum.teu)}</span> TEU ·{' '}
         <span className="text-white font-extrabold">{(sum.grossWeightKg / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}</span> MT
-        <span className="text-[#b3a59e] ml-3">Click a booking no., containers, carrier, ETD or remarks cell to edit it.</span>
+        <span className="text-[#b3a59e] ml-3">Click a booking for all its details. Booking no. and ETD can be edited right in the sheet.</span>
       </div>
+
+      {openId && (() => {
+        const n = nominations.find(x => x.id === openId);
+        return n ? (
+          <BookingDetails n={n} onClose={() => setOpenId(null)}
+            onEdit={(patch) => onEditNomination(n.inquiry, patch)}
+            onViewInquiry={() => { setOpenId(null); onViewDetails(n.inquiry); }} />
+        ) : null;
+      })()}
 
       {/* Sheet */}
       <div className="sheet-wrap">
@@ -124,52 +191,34 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
               <th>Confirmed</th>
               <th>Inquiry Ref</th>
               <th>Booking No.</th>
-              <th>Shipper</th>
-              <th>Customer Contact</th>
-              <th>POL</th>
-              <th>POD</th>
+              <th>Customer</th>
+              <th>Route</th>
               <th>Equipment</th>
-              <th className="num">Cntrs</th>
-              <th className="num">TEU</th>
-              <th className="num">Gross Wt (kg)</th>
               <th className="num">CBM</th>
-              <th>Commodity</th>
               <th>Final Rate</th>
-              <th>Carrier</th>
               <th>ETD</th>
-              <th>Handled By</th>
-              <th>Remarks</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td className="sheet-rownum">1</td>
-                <td colSpan={18} className="!py-10 text-center text-[#dcd2cd]">
+                <td colSpan={9} className="!py-10 text-center text-[#dcd2cd]">
                   No nominations {period === 'all' ? 'yet' : 'in this period'}. Click <b className="text-white">Add nomination</b> to convert a quoted inquiry.
                 </td>
               </tr>
             ) : rows.map((n, i) => (
-              <tr key={n.id}>
+              <tr key={n.id} className="cursor-pointer hover:bg-[#181311]" onClick={() => setOpenId(n.id)} title="Click for full booking details">
                 <td className="sheet-rownum">{i + 1}</td>
                 <td className="font-mono">{formatDay(n.confirmedAt, { day: '2-digit', month: 'short', year: '2-digit' })}</td>
-                <td className="font-mono font-extrabold text-[#FFA08C] cursor-pointer hover:underline" onClick={() => onViewDetails(n.inquiry)}>{n.id}</td>
+                <td className="font-mono font-extrabold text-[#FFA08C]">{n.id}</td>
                 <EditableCell value={n.bookingRef} className="font-mono font-bold" onSave={(v) => onEditNomination(n.inquiry, { bookingRef: v.trim() })} />
-                <td className="font-semibold text-white max-w-[220px] truncate" title={n.shipperName}>{n.shipperName}</td>
-                <td className="max-w-[160px] truncate" title={n.contactPerson}>{n.contactPerson}</td>
-                <td className="font-mono">{n.pol}</td>
-                <td className="font-mono">{n.pod}</td>
+                <td className="font-semibold text-white max-w-[260px] truncate" title={n.shipperName}>{n.shipperName}</td>
+                <td className="font-mono whitespace-nowrap">{n.pol} ➔ {n.pod}</td>
                 <td>{n.equipment}</td>
-                <EditableCell value={String(n.containers)} type="number" className="num font-mono" onSave={(v) => onEditNomination(n.inquiry, { containerCount: Number(v) || 0 })} />
-                <td className="num font-mono">{fmtTeu(n.teu)}</td>
-                <td className="num font-mono">{n.grossWeightKg ? n.grossWeightKg.toLocaleString() : '—'}</td>
                 <td className="num font-mono">{n.volumeCbm || '—'}</td>
-                <td className="max-w-[200px] truncate" title={n.commodity}>{n.commodity}</td>
                 <td className="font-mono font-bold text-emerald-400">{n.rate}</td>
-                <EditableCell value={n.carrier} onSave={(v) => onEditNomination(n.inquiry, { carrier: v.trim() })} />
                 <EditableCell value={n.etd} type="date" className="font-mono" onSave={(v) => onEditNomination(n.inquiry, { etd: v })} />
-                <td className="max-w-[160px] truncate" title={n.handledBy}>{n.handledBy}</td>
-                <EditableCell value={n.remarks} className="max-w-[240px] truncate" onSave={(v) => onEditNomination(n.inquiry, { remarks: v.trim() })} />
               </tr>
             ))}
           </tbody>
@@ -177,12 +226,9 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
             <tfoot>
               <tr>
                 <td className="sheet-rownum"></td>
-                <td colSpan={8} className="font-extrabold">TOTAL ({sum.shipments} shipments)</td>
-                <td className="num font-mono font-extrabold">{sum.containers}</td>
-                <td className="num font-mono font-extrabold">{fmtTeu(sum.teu)}</td>
-                <td className="num font-mono font-extrabold">{sum.grossWeightKg.toLocaleString()}</td>
+                <td colSpan={6} className="font-extrabold">TOTAL ({sum.shipments} shipments)</td>
                 <td className="num font-mono font-extrabold">{Number(sum.volumeCbm.toFixed(2))}</td>
-                <td colSpan={6}></td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           )}

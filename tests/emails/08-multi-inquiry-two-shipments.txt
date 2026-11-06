@@ -1,0 +1,49 @@
+From: Imports Desk <imports@harborline-shipping.com>
+Subject: 2 new LCL enquiries - Qingdao & Shenzhen to Nhava Sheva
+
+Dear Team,
+
+Please quote for below 2 shipments:
+
+Shipment 1:
+POL: Qingdao
+POD: Nhava Sheva
+Commodity: Auto spare parts
+CBM: 4.1
+Weight: 900 kgs
+Terms: FOB
+
+Shipment 2:
+POL: Shenzhen
+POD: Nhava Sheva
+Commodity: Mobile accessories
+CBM: 1.8
+Weight: 260 kgs
+Terms: EXW
+
+Regards,
+Prakash Iyer
+Harborline Shipping Services
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "inquiries": [
+    {
+      "pol": "CNTAO",
+      "pod": "INNSA",
+      "commodity": "Auto spare parts",
+      "volumeCbm": 4.1,
+      "grossWeightKg": 900,
+      "incoterms": "FOB"
+    },
+    {
+      "pol": "CNSZX",
+      "pod": "INNSA",
+      "commodity": "Mobile accessories",
+      "volumeCbm": 1.8,
+      "grossWeightKg": 260,
+      "incoterms": "EXW"
+    }
+  ]
+}

@@ -422,8 +422,9 @@ export default function EmailIntakeModal({
                     </Field>
                     <Field label="Packages"><input value={draft.packages || ''} onChange={set('packages')} className="scm-input w-full" placeholder="e.g. 100 boxes" /></Field>
                     <Field label="HSN code"><input value={draft.hsnCode || ''} onChange={set('hsnCode')} className="scm-input w-full font-mono" /></Field>
-                    <Field label="Dimensions"><input value={draft.dimensions || ''} onChange={set('dimensions')} className="scm-input w-full font-mono" placeholder="L x W x H" /></Field>
+                    <Field label="Dimensions"><textarea rows={2} value={draft.dimensions || ''} onChange={set('dimensions')} className="scm-input w-full font-mono text-[13px]" placeholder="L x W x H; several sizes separated by ;" /></Field>
                     <Field label="Cargo ready"><input value={draft.cargoReadyDate || ''} onChange={set('cargoReadyDate')} className="scm-input w-full" /></Field>
+                    <Field label="Customer address" className="col-span-3"><textarea rows={2} value={draft.customerAddress || ''} onChange={set('customerAddress')} className="scm-input w-full" placeholder="The client's office address (from their signature)" /></Field>
                     <Field label="Pickup address" className="col-span-3"><textarea rows={2} value={draft.pickupAddress || ''} onChange={set('pickupAddress')} className="scm-input w-full" placeholder="Supplier / factory address, for ex-works pickup" /></Field>
                     <Field label="Special requirements" className="col-span-3"><input value={draft.specialRequirements || ''} onChange={set('specialRequirements')} className="scm-input w-full" /></Field>
                   </div>
