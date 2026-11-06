@@ -72,19 +72,30 @@ for (const folder of folders) {
       if (result.declined?.reason === expected.declineReason) ok++; else problems.push(`decline reason: got "${result.declined?.reason}", should be "${expected.declineReason}"`);
     }
     const wanted = expected.inquiries || [];
-    if (wanted.length > 1) {
+    const got = result.shipments?.length ? result.shipments : [result.shipment];
+    if (wanted.length) {
       total++;
-      problems.push(`inquiries: found 1, should be ${wanted.length} (one email with several inquiries isn't split yet)`);
+      if (got.length === wanted.length) ok++;
+      else problems.push(`shipments: found ${got.length}, should be ${wanted.length}`);
     }
-    // The reader returns one shipment; compare it with the first expected one.
-    for (const [key, value] of Object.entries(wanted[0] || {})) {
+    if (expected.warns !== undefined) {
       total++;
-      const actual = result.shipment?.[key];
-      const portCode = PORT_KEYS[key] && result.shipment?.[PORT_KEYS[key]];
-      const good = EXACT.has(key) ? norm(actual) === norm(value) : matches(actual, value) || (portCode && matches(portCode, value));
-      if (good) ok++;
-      else problems.push(`${key}: got "${actual ?? ''}", should be "${value}"`);
+      if (Boolean(result.multipleHint) === expected.warns) ok++;
+      else problems.push(`"may hold several shipments" warning: ${result.multipleHint ? `shown (${result.multipleHint})` : 'not shown'}, should be ${expected.warns ? 'shown' : 'not shown'}`);
     }
+    // Compare each expected shipment with the one the reader found in the same position.
+    wanted.forEach((want, n) => {
+      const ship = got[n] || {};
+      const tag = wanted.length > 1 ? `#${n + 1} ` : '';
+      for (const [key, value] of Object.entries(want)) {
+        total++;
+        const actual = ship[key];
+        const portCode = PORT_KEYS[key] && ship[PORT_KEYS[key]];
+        const good = EXACT.has(key) ? norm(actual) === norm(value) : matches(actual, value) || (portCode && matches(portCode, value));
+        if (good) ok++;
+        else problems.push(`${tag}${key}: got "${actual ?? ''}", should be "${value}"`);
+      }
+    });
 
     fieldsOk += ok;
     fieldsTotal += total;

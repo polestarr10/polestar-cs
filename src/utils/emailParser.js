@@ -223,7 +223,7 @@ const OTHER_LABEL = /^\s*[A-Za-z][A-Za-z .\/()&-]{1,40}\s*[:：]\s*\S/;
 //   722, 7th Floor, B Wing, Pranik Chambers, Sakinaka,     (blank lines between)
 //   Andheri (East), Mumbai - 400072
 // Also "Address: …" / "Office: …". Pickup/factory addresses are a separate field.
-const CONTACT_LINE = /^\s*(?:[mepwtf]|mob(?:ile)?|tel|ph(?:one)?|email|e-mail|web(?:site)?|fax|cell|gst(?:in)?)\s*[.:]|www\.|https?:|@/i;
+const CONTACT_LINE = /^\s*(?:[mepwtf]|mob(?:ile)?|tel|ph(?:one)?|email|e-mail|web(?:site)?|fax|cell|gst(?:in)?)\s*[.:]|www\.|https?:|@|^\s*\[?cid:/i;
 const PIN_LINE = /\b\d{3}\s?\d{3}\b|\bindia\b/i;
 const ADDRESS_WORDS = /\b(floor|road|rd\.?|marg|street|st\.|lane|nagar|chambers|tower|sector|plot|unit|building|bldg|estate|complex|midc|near|opp\.?|wing|house|park|centre|center|east|west)\b/i;
 
@@ -283,6 +283,170 @@ function unlabelledSignatureAddress(lines) {
   return '';
 }
 
+// ---- Several shipments in one email ----
+// Package groups that add up to a total ("3 pallets + 4 pallets = 7") stay ONE
+// shipment. Separate shipments are split when the email lays them out clearly:
+// repeated "POL:" blocks, "Shipment 1 / Shipment 2" headings, or a table with one
+// row per shipment. Anything that only *might* be several shipments is flagged.
+
+// Fields that belong to each shipment; contact, company, addresses etc. are shared.
+const PER_SHIPMENT = ['pol', 'polCode', 'pod', 'podCode', 'direction', 'routingMode', 'containerType', 'containerCount',
+  'commodity', 'grossWeightKg', 'volumeCbm', 'packages', 'dimensions', 'hsnCode', 'incoterms', 'cargoReadyDate'];
+const SECTION_HEADING = /^[\s>*•-]*(?:shipment|inquiry|enquiry|option|lot|consignment|cargo|lane)\s*(?:no\.?\s*)?[#-]?\s*\(?\d{1,2}\)?\s*[:.)\-–]?\s*/i;
+const POL_LABEL = /^[\s>*•-]*(?:\d{1,2}[.)]\s*)?(?:pol|port of loading|loading port|origin port|port of origin)\s*[:\-–]/i;
+const SIGN_OFF = /^\s*(?:(?:best|warm|kind)\s+)?regards|^\s*thanks|^\s*thank you|^\s*sincerely/i;
+
+function sectionTexts(raw) {
+  const lines = raw.replace(/\r/g, '').split('\n');
+  const end = (() => { const i = lines.findIndex(l => SIGN_OFF.test(l)); return i === -1 ? lines.length : i; })();
+  for (const marker of [SECTION_HEADING, POL_LABEL]) {
+    const starts = [];
+    for (let i = 0; i < end; i++) if (marker.test(lines[i])) starts.push(i);
+    if (starts.length < 2) continue;
+    return starts.map((s, k) => lines.slice(s, k + 1 < starts.length ? starts[k + 1] : end).join('\n'));
+  }
+  return null;
+}
+
+// A table with a header naming the ports: "Sr | POL | POD | Commodity | CBM | Weight (kg)".
+function tableShipments(raw) {
+  const lines = raw.replace(/\r/g, '').split('\n');
+  const cellsOf = (l) => l.split(/\s*\|\s*|\t|\s{2,}/).map(c => c.trim()).filter((c, i, a) => c || (i > 0 && i < a.length - 1));
+  const headerAt = lines.findIndex(l => /\b(?:pol|origin|loading|from)\b/i.test(l) && /\b(?:pod|destination|discharge|to)\b/i.test(l) && cellsOf(l).length >= 3);
+  if (headerAt === -1) return null;
+  const header = cellsOf(lines[headerAt]).map(h => h.toLowerCase());
+  const col = (re) => header.findIndex(h => re.test(h));
+  const cols = {
+    pol: col(/\b(?:pol|origin|loading|from)\b/), pod: col(/\b(?:pod|destination|discharge|to)\b/),
+    commodity: col(/commodity|cargo|goods|description|product/), cbm: col(/cbm|vol/), weight: col(/weight|wt|kg|mt\b/),
+    container: col(/container|equip|type|size/), terms: col(/term|inco/), packages: col(/pkg|package|pallet|qty|boxes|cartons/),
+  };
+  const rows = [];
+  for (let i = headerAt + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || /^[-=|+\s]+$/.test(line)) { if (rows.length) break; continue; }
+    const cells = cellsOf(line);
+    if (cells.length < Math.min(3, header.length)) break;
+    const get = (k) => (cols[k] >= 0 ? cells[cols[k]] || '' : '');
+    const polInfo = get('pol') ? portFromLabel(get('pol')) : null;
+    const podInfo = get('pod') ? portFromLabel(get('pod')) : null;
+    const weightText = get('weight');
+    const weight = parseFloat(weightText.replace(/,/g, '')) || 0;
+    rows.push({
+      pol: polInfo?.name || '', polCode: polInfo?.code || '', pod: podInfo?.name || '', podCode: podInfo?.code || '',
+      commodity: get('commodity').replace(/\s*\(.*?\)\s*$/, '').trim(),
+      volumeCbm: parseFloat(get('cbm')) || 0,
+      grossWeightKg: /mt|ton/i.test(weightText) || /\bmt\b/.test(header[cols.weight] || '') ? Math.round(weight * 1000) : weight,
+      containerType: get('container'), incoterms: (get('terms').match(/\b(FOB|CIF|CFR|EXW|FCA|DDP|DAP|CPT|CIP)\b/i) || [])[1]?.toUpperCase() || '',
+      packages: get('packages'),
+    });
+  }
+  return rows.length >= 2 ? rows : null;
+}
+
+// Each shipment's own details, with the email-wide details (sender, company,
+// addresses) shared. Identical repeats (e.g. a quoted earlier message) count once.
+export function splitShipments(raw, headers, base) {
+  const fromSections = sectionTexts(raw)?.map(t => extractShipment(t, headers));
+  const parts = fromSections || tableShipments(raw);
+  if (!parts || parts.length < 2) return [];
+  const isIndian = (code) => /^IN[A-Z]{3}$/.test(code || '');
+  const out = [];
+  for (const p of parts) {
+    const s = { ...base };
+    for (const k of PER_SHIPMENT) s[k] = p[k] || '';
+    s.grossWeightKg = Number(p.grossWeightKg) || 0;
+    s.volumeCbm = Number(p.volumeCbm) || 0;
+    s.containerCount = Number(p.containerCount) || 0;
+    // Shared terms / mode apply when a shipment doesn't state its own.
+    if (!s.incoterms) s.incoterms = base.incoterms || '';
+    if (!s.containerType) {
+      s.containerType = s.volumeCbm > 0 && !/\d\s*x?\s*(20|40|45)/.test(base.containerType || '') ? 'LCL' : base.containerType || '';
+      s.routingMode = s.containerType === 'LCL' ? 'Ocean LCL' : base.routingMode;
+    }
+    if (!s.direction && s.polCode && s.podCode) s.direction = isIndian(s.podCode) && !isIndian(s.polCode) ? 'Import' : isIndian(s.polCode) && !isIndian(s.podCode) ? 'Export' : '';
+    const key = [s.polCode || s.pol, s.podCode || s.pod, s.commodity, s.volumeCbm, s.grossWeightKg].join('|').toLowerCase();
+    if (!out.some(o => o._key === key)) out.push({ ...s, _key: key });
+  }
+  return out.length >= 2 ? out.map(({ _key, ...s }) => s) : [];
+}
+
+// Signs that an email may hold more than one shipment, when it couldn't be split.
+export function multipleShipmentHint(raw) {
+  const said = raw.match(/\b(?:two|2|three|3|four|4|five|5|multiple|several|both)\s+(?:different\s+|separate\s+|new\s+)?(?:lcl\s+|fcl\s+)?(?:shipments|enquiries|inquiries|consignments|lanes|routes)\b/i);
+  if (said) return `The email says "${said[0]}".`;
+  const pods = new Set();
+  for (const m of raw.matchAll(/^[\s>*•-]*(?:pod|port of discharge|destination port|discharge port)\s*[:\-–]\s*([^\n\r]+)/gim)) {
+    const p = findPort(m[1]);
+    pods.add(p ? p.code : m[1].trim().toLowerCase().slice(0, 20));
+  }
+  if (pods.size > 1) return 'It names more than one destination port.';
+  const fcl = new Set([...raw.toLowerCase().matchAll(/\b(\d{1,3})\s*(?:x|\*|×)\s*(20|40|45)\s*'?\s*(hc|hq|gp|dv|rf|ot|fr)?/g)].map(m => `${m[2]}${m[3] || ''}`));
+  if (fcl.size > 1) return 'It mentions more than one container type (could be separate shipments, or options for one).';
+  return '';
+}
+
+// Package groups that make up one shipment, one per line, each with a count and
+// a size and/or CBM:
+//   10001000800mm * 3 pallets 2.4CBM
+//   100010001005mm 4 pallets 4.2 CBM
+function cargoGroups(raw) {
+  const groups = [];
+  for (const rawLine of raw.replace(/\r/g, '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line || /^\s*total\b/i.test(line) || /^(?:no\.?\s*of|number\s+of)\b/i.test(line)) continue;
+    const pkg = line.match(new RegExp(`(?:^|[^\\d.])(\\d{1,4})\\s*(?:nos?\\.?\\s*)?(${PKG_KIND})\\b`, 'i'));
+    if (!pkg) continue;
+    const cbm = line.match(/([0-9]+(?:\.[0-9]+)?)\s*cbm\b/i);
+    const before = line.slice(0, pkg.index + pkg[0].indexOf(pkg[1])).replace(/[*×x\s,:\-–]+$/i, '').trim();
+    const dims = before && DIM_LINE.test(before.replace(/(\d{6,13})\s*(mm|cm)/i, '1x1x1')) ? fixDimensions(before) : '';
+    if (!cbm && !dims) continue;
+    groups.push({ count: Number(pkg[1]), kind: pkg[2].toLowerCase(), cbm: cbm ? parseFloat(cbm[1]) : 0, dims });
+  }
+  return groups;
+}
+
+// "Total: 6.6 CBM", "Total - 7 Pallets", "Total 7 pallets / 6.6 cbm".
+function cargoTotals(raw) {
+  let cbm = 0;
+  let count = 0;
+  let kind = '';
+  for (const m of raw.matchAll(/^[\s>*•-]*total\b[^\n\r]*/gim)) {
+    const line = m[0];
+    const c = line.match(/([0-9]+(?:\.[0-9]+)?)\s*cbm\b/i);
+    if (c && !cbm) cbm = parseFloat(c[1]);
+    const p = line.match(new RegExp(`\\b(\\d{1,4})\\s*(${PKG_KIND})\\b`, 'i'));
+    if (p && !count) { count = Number(p[1]); kind = p[2].toLowerCase(); }
+  }
+  return { cbm, count, kind };
+}
+
+// Sizes whose separators were lost when the email was copied: "10001000800mm"
+// is 1000 × 1000 × 800 mm, "402627 cm" is 40 × 26 × 27 cm, "1m1m1.85m" is
+// 1 × 1 × 1.85 m. Digits are only split when there is exactly one sensible way.
+function splitRun(digits, unit) {
+  const [min, max] = unit === 'mm' ? [100, 9999] : unit === 'cm' ? [10, 999] : [1, 99];
+  const found = [];
+  for (let a = 1; a < digits.length - 1; a++) {
+    for (let b = a + 1; b < digits.length; b++) {
+      const parts = [digits.slice(0, a), digits.slice(a, b), digits.slice(b)];
+      if (parts.every(p => !/^0/.test(p) && Number(p) >= min && Number(p) <= max)) found.push(parts);
+    }
+  }
+  return found.length === 1 ? found[0] : null;
+}
+
+function fixDimensions(text) {
+  let t = text.replace(/\*/g, ' ').trim();
+  const metres = t.match(/^(\d+(?:\.\d+)?)\s*m\s*(\d+(?:\.\d+)?)\s*m\s*(\d+(?:\.\d+)?)\s*m\b/i);
+  if (metres) return `${metres[1]} × ${metres[2]} × ${metres[3]} m`;
+  t = t.replace(/\b(\d{6,13})\s*(mm|cm)\b/gi, (whole, digits, unit) => {
+    const parts = splitRun(digits, unit.toLowerCase());
+    return parts ? `${parts.join(' × ')} ${unit.toLowerCase()}` : whole;
+  });
+  return t.replace(/\s+/g, ' ').trim();
+}
+
 // Package dimensions, one size or several (one line per box):
 //   Dimensions: 110 × 110 × 100 cm
 //   Dimension :                          <- label alone, sizes below
@@ -294,8 +458,12 @@ const DIM_LINE = /\d\s*(?:mm|cm|m|in|inch|")?\s*[x×*]\s*\d|\b[LWH]\s*[-:=.]?\s*
 function dimensionsFrom(raw) {
   const lines = raw.replace(/\r/g, '').split('\n');
   const start = lines.findIndex(l => /^[\s>*•-]*(?:box|carton|package|pkg|cargo)?\s*(?:dimensions?|dims|measurements?)\b(?!.*\bcbm\b)\s*(?:\([^)]*\))?\s*[:\-–]/i.test(l));
-  if (start === -1) return '';
-  const clean = (s) => s.replace(/\*/g, '').replace(/\s*-\s*(?=\d)/g, '-').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+  if (start === -1) {
+    // No label: a line that is only a size, e.g. "1m1m1.85m".
+    const bare = lines.map(l => l.trim()).find(l => /^\d+(?:\.\d+)?\s*m\s*\d+(?:\.\d+)?\s*m\s*\d+(?:\.\d+)?\s*m$/i.test(l));
+    return bare ? fixDimensions(bare) : '';
+  }
+  const clean = (s) => fixDimensions(s.replace(/\*/g, '').replace(/\s*-\s*(?=\d)/g, '-').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim());
   const sizes = [];
   const inline = lines[start].replace(/^[^:\-–]*[:\-–]\s*/, '').trim();
   if (inline) sizes.push(clean(inline));
@@ -334,6 +502,9 @@ function labelBlock(raw, names) {
   }
   return '';
 }
+
+// Noted in special requirements when the customer has agreed destination charges.
+export const DEST_AGREED_NOTE = 'Destination charges as agreed';
 
 // Package kinds, optionally with a material: "wooden boxes", "jumbo bags", "pallets".
 const PKG_KIND = '(?:(?:wooden|wood|plywood|ply|corrugated|jumbo|steel|plastic|pp|hdpe|paper|gunny|carton)\\s+)?'
@@ -533,9 +704,15 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   // "2.9 CBM" or a labelled line "CBM: 2.9" / "Volume - 2.9".
   // A labelled line in the email ("Volume : 3.300CBM") wins over a figure in the
   // subject or a sentence ("… 3.330CBM").
-  const volume = raw.match(/^[\s>*•-]*(?:total\s+)?(?:cbm|volume|vol\.?|measurement)\s*(?:\(\s*cbm\s*\))?\s*[:\-–]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/im)
-    || raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i);
-  const volumeCbm = volume ? parseFloat(volume[1].replace(/,/g, '')) : 0;
+  // One shipment can be several package groups ("3 pallets 2.4 CBM", "4 pallets
+  // 4.2 CBM") with a "Total: 6.6 CBM" line: the total wins, else the groups add up.
+  const groups = cargoGroups(raw);
+  const totals = cargoTotals(raw);
+  const volume = raw.match(/^[\s>*•-]*(?:total\s+)?(?:cbm|volume|vol\.?|measurement)\s*(?:\(\s*cbm\s*\))?\s*[:\-–]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/im);
+  const inlineVolume = raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i);
+  const groupCbm = groups.length > 1 && groups.every(g => g.cbm) ? Math.round(groups.reduce((s, g) => s + g.cbm, 0) * 1000) / 1000 : 0;
+  const volumeCbm = volume ? parseFloat(volume[1].replace(/,/g, ''))
+    : totals.cbm || groupCbm || (inlineVolume ? parseFloat(inlineVolume[1].replace(/,/g, '')) : 0);
 
   // A volume in CBM with no container named means the cargo goes LCL.
   if (!containerType && volumeCbm > 0) {
@@ -549,7 +726,10 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     'Nature of (?:Goods|Cargo)', 'Item Description', 'Description', 'Desc\\.?', 'Goods', 'Products?', 'Items?', 'Material', 'Cargo(?:\\s+Details)?',
   ])
     // Or written inside a sentence: "Please quote as per subject. Commodity: LED lights. Ex works …"
-    || (raw.match(/\b(?:commodity|description of goods|goods description)\s*[:\-–]\s*([^.\n;]{2,80})/i) || [])[1]?.trim() || '';
+    || (raw.match(/\b(?:commodity|description of goods|goods description)\s*[:\-–]\s*([^.\n;]{2,80})/i) || [])[1]?.trim()
+    // "Cargo is Tiles." (but not "Cargo is ready on …" / "cargo is stackable")
+    || (raw.match(/\b(?:cargo|commodity|goods|material)\s+(?:is|are)\s+(?!(?:ready|stackable|non|not|available|being|under|in|at|on|to|of|for|the|a|an)\b)([A-Za-z][^.\n;]{1,60})/i) || [])[1]?.trim()
+    || '';
   const commodityClean = commodity
     .replace(/^(?:description|details|desc\.?)\s*[:\-–]\s*/i, '')
     // The HSN code goes in its own field, so take it (and stray "*") out of the description.
@@ -570,9 +750,21 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const incoterms = inco ? (/^EX/i.test(inco[1]) ? 'EXW' : /^C&F$/i.test(inco[1]) ? 'CFR' : inco[1].toUpperCase()) : '';
 
   // Cargo details import inquiries usually give.
-  const packages = packagesFrom(raw, label);
   const hsn = raw.match(HSN_RE);
-  const dimensions = dimensionsFrom(raw);
+  let packages = packagesFrom(raw, label);
+  let dimensions = dimensionsFrom(raw);
+  if (groups.length > 1) {
+    // "3 pallets + 4 pallets = 7 pallets", and each group's size and CBM.
+    const kinds = [...new Set(groups.map(g => g.kind))];
+    const unit = kinds.length === 1 ? kinds[0] : 'packages';
+    const totalCount = totals.count || groups.reduce((s, g) => s + g.count, 0);
+    packages = `${groups.map(g => `${g.count} ${g.kind}`).join(' + ')} = ${totalCount} ${unit}`;
+    if (groups.some(g => g.dims)) {
+      dimensions = groups.map(g => `${g.dims || 'size not given'} × ${g.count} ${g.kind}${g.cbm ? ` (${g.cbm} CBM)` : ''}`).join('; ');
+    }
+  } else if (totals.count && !packages) {
+    packages = `${totals.count} ${totals.kind}`;
+  }
   const pickupAddress = labelBlock(raw, ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
   const customerAddress = customerAddressFrom(raw);
 
@@ -610,6 +802,8 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
       /pick[\s-]?up address|factory address|door pick[\s-]?up|pick[\s-]?up from|origin pick[\s-]?up/i.test(raw) && 'Pickup from supplier needed',
       /charges?\s+separately|separate(?:ly)?\s+(?:origin|destination|local)|origin,?\s*destination,?\s*(?:and\s+)?cfs|(?:all[\s-]?inclusive|charges?)\s+break[\s-]?up|break[\s-]?down/i.test(raw) && 'Show origin, destination and CFS charges separately',
       /export customs clearance|customs clearance at origin|origin clearance/i.test(raw) && 'Include export customs clearance at origin',
+      // The quote then just says "Destination charges: As agreed".
+      /\b(?:destination|dest\.?|local)\s+charges?\b[^.\n]{0,25}?\b(?:as\s+(?:per\s+)?agreed|as\s+per\s+(?:our\s+)?(?:agreement|contract|tariff))|\bDC\s+as\s+agreed\b/i.test(raw) && DEST_AGREED_NOTE,
     ].filter(Boolean).join('; '),
     urgent: /\burgent\b|\basap\b|\bat the earliest\b/i.test(raw),
   };

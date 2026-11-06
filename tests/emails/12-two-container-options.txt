@@ -1,0 +1,15 @@
+From: Rakesh Patel <rakesh.p@sunglowtextiles.com>
+Subject: Rate request - Mundra to Jebel Ali
+
+Hi,
+
+Please quote for 1x20GP and also 1x40HC from Mundra to Jebel Ali, cotton fabric, FOB.
+
+Thanks,
+Rakesh
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "warns": true
+}

@@ -1,0 +1,15 @@
+From: Kiran Rao <kiran@meridianexim.com>
+Subject: Rates needed
+
+Dear Sir,
+
+We have 2 shipments ready from Shanghai to Nhava Sheva next week, one of machine parts around 3 cbm and the other of spares about 1.5 cbm. Please quote LCL rates.
+
+Regards,
+Kiran Rao
+
+=== EXPECTED ===
+{
+  "kind": "new_inquiry",
+  "warns": true
+}

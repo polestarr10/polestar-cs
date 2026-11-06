@@ -1,6 +1,6 @@
 // Reads a pasted email without AI and returns the same result shape as the AI
 // reader (api/_lib/analyzeEmail.js), so the Paste Email screen works either way.
-import { evaluateEmailRelevance, parseHeaders, latestMessage, extractShipment, missingForQuote, emailFromBody } from './emailParser.js';
+import { evaluateEmailRelevance, parseHeaders, latestMessage, extractShipment, missingForQuote, emailFromBody, splitShipments, multipleShipmentHint } from './emailParser.js';
 
 const REF_RE = /INQ-\d{4}-\d{4,6}/i;
 const OWN_DOMAINS = ['polestarfreight.com', 'polestarlogistics.com'];
@@ -177,8 +177,12 @@ export function readEmailWithRules(text, inquiries = []) {
     : latest.includes('?') ? 'question' : 'other';
 
   const missing = kind === 'new_inquiry' ? missingForQuote(shipment) : [];
+  // Several separate shipments in one email become separate inquiries; if the
+  // email only *might* hold several, the rep is warned to check.
+  const shipments = kind === 'new_inquiry' ? splitShipments(customerText, headers, shipment) : [];
+  const multipleHint = kind === 'new_inquiry' && shipments.length < 2 ? multipleShipmentHint(customerText) : '';
   const summaries = {
-    new_inquiry: `New inquiry: ${[shipment.containerType, shipment.commodity].filter(Boolean).join(' ') || 'shipment'}${shipment.pol || shipment.pod ? `, ${shipment.polCode || shipment.pol || '?'} to ${shipment.podCode || shipment.pod || '?'}` : ''}${shipment.grossWeightKg ? `, ${(shipment.grossWeightKg / 1000).toLocaleString()} MT` : ''}`,
+    new_inquiry: shipments.length > 1 ? `New inquiry: ${shipments.length} separate shipments in one email` : `New inquiry: ${[shipment.containerType, shipment.commodity].filter(Boolean).join(' ') || 'shipment'}${shipment.pol || shipment.pod ? `, ${shipment.polCode || shipment.pol || '?'} to ${shipment.podCode || shipment.pod || '?'}` : ''}${shipment.grossWeightKg ? `, ${(shipment.grossWeightKg / 1000).toLocaleString()} MT` : ''}`,
     customer_reply: points[0] ? `Customer replied: ${points[0].slice(0, 140)}` : 'Customer replied',
     nomination: 'Customer confirmed the booking',
     declined: `Customer declined${decline ? ` (${decline.reason.replace(/_/g, ' ')})` : ''}`,
@@ -191,7 +195,9 @@ export function readEmailWithRules(text, inquiries = []) {
     matchConfidence: kind === 'new_inquiry' && match.confidence !== 'strong' ? 'none' : match.confidence,
     summary: summaries[kind],
     email: headers,
-    shipment,
+    shipment: shipments[0] || shipment,
+    shipments: shipments.length > 1 ? shipments : [shipments[0] || shipment],
+    multipleHint,
     missingDetails: missing,
     customerReply: { intent, requestedRate, points: kind === 'customer_reply' ? points : [] },
     nomination: kind === 'nomination' ? nominationDetails(latest, headers) : { bookingRef: '', containerType: '', containerCount: 0, finalRate: '', carrier: '', etd: '', confirmedBy: '', remarks: '' },

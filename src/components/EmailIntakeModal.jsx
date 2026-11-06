@@ -9,7 +9,7 @@ import { findPlaceholders } from '../utils/replyDraft';
 import { sampleEmails } from '../data/sampleEmails';
 import { uploadScreenshotToImageKit } from '../lib/imagekit';
 import {
-  analyzeEmailWithAI, resultToInquiry, emailTime, withSignature, findRefTag, LOST_REASONS,
+  analyzeEmailWithAI, resultToInquiry, emailTime, withSignature, findRefTag, LOST_REASONS, newInquiryId,
 } from '../lib/emailAI';
 
 const KINDS = {
@@ -71,7 +71,16 @@ export default function EmailIntakeModal({
   const [result, setResult] = useState(null);
   const [fallbackNote, setFallbackNote] = useState('');
   const [kind, setKind] = useState('new_inquiry');
-  const [draft, setDraft] = useState(null);        // new inquiry being reviewed
+  // New inquiries being reviewed: one per shipment in the email (usually one).
+  const [drafts, setDrafts] = useState([]);
+  const [active, setActive] = useState(0);
+  const draft = drafts[active] || null;
+  const setDraft = (update) => setDrafts(prev => {
+    if (update === null) return [];
+    const next = [...prev];
+    next[active] = typeof update === 'function' ? update(prev[active]) : update;
+    return next;
+  });
   const [matchId, setMatchId] = useState('');
   const [reply, setReply] = useState('');
   const [lostReason, setLostReason] = useState('other');
@@ -128,7 +137,16 @@ export default function EmailIntakeModal({
     }
     setResult(res);
     setKind(res.kind);
-    setDraft(resultToInquiry(res, { existing: inquiries, currentUser, rawText: text, screenshotUrl }));
+    // One draft per shipment; ids are kept unique across the batch.
+    const ships = res.shipments?.length ? res.shipments : [res.shipment];
+    const taken = [...inquiries];
+    setDrafts(ships.map((ship, n) => {
+      const d = resultToInquiry({ ...res, shipment: ship, summary: ships.length > 1 ? `${res.summary} (shipment ${n + 1} of ${ships.length})` : res.summary },
+        { existing: taken, currentUser, rawText: text, screenshotUrl });
+      taken.push(d);
+      return d;
+    }));
+    setActive(0);
     const validMatch = inquiries.some(i => i.id === res.matchedInquiryId);
     setMatchId(validMatch ? res.matchedInquiryId : (inquiries.find(i => i.id === findRefTag(text))?.id || ''));
     setReply(res.suggestedReply || '');
@@ -201,6 +219,26 @@ export default function EmailIntakeModal({
     }
     onCreateInquiry(inq, { openComposer: mode === 'quote' });
     finish();
+  };
+
+  // Save every shipment in the email as its own inquiry.
+  const saveAllShipments = () => {
+    drafts.forEach(d => onCreateInquiry({ ...d, grossWeightKg: Number(d.grossWeightKg) || 0, volumeCbm: Number(d.volumeCbm) || 0 }, { openComposer: false }));
+    finish();
+  };
+
+  // A shipment the reader missed: a new tab with the shared details, cargo left blank.
+  const addShipment = () => {
+    const base = drafts[active] || drafts[0];
+    const blank = { pol: '', polCode: '', pod: '', podCode: '', commodity: '', grossWeightKg: 0, volumeCbm: 0, packages: '', dimensions: '', hsnCode: '', containerType: '', routingMode: '' };
+    const copy = { ...base, ...blank, id: newInquiryId([...inquiries, ...drafts]), auditLog: [audit(`Logged from email: ${summary} (added by hand)`)] };
+    setDrafts(prev => [...prev, copy]);
+    setActive(drafts.length);
+  };
+  const removeShipment = (n) => {
+    if (drafts.length < 2) return;
+    setDrafts(prev => prev.filter((_, i) => i !== n));
+    setActive(a => Math.max(0, a >= n ? a - 1 : a));
   };
 
   const logCustomerReply = (mode) => {
@@ -394,6 +432,31 @@ export default function EmailIntakeModal({
 
               {kind === 'new_inquiry' && draft && (
                 <div className="space-y-3">
+                  {result?.multipleHint && drafts.length === 1 && (
+                    <div className="p-3 rounded-xl border-2 border-[#f87171]/70 bg-[rgba(248,113,113,0.1)] text-sm flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-[#fca5a5] font-bold">
+                        <AlertTriangle size={15} className="inline mr-1.5 -mt-0.5" />
+                        This email may contain more than one shipment. {result.multipleHint} Read it again before saving; if there is another shipment, add it.
+                      </span>
+                      <button onClick={addShipment} className="btn-dark text-sm shrink-0">+ Add shipment</button>
+                    </div>
+                  )}
+                  {drafts.length > 1 && (
+                    <div className="p-2.5 rounded-xl border border-[#FFA08C]/50 bg-[rgba(255,160,140,0.06)] space-y-2">
+                      <div className="text-sm font-bold text-white">This email has <span className="text-[#FFA08C]">{drafts.length} separate shipments</span>. Check each one; they'll be saved as {drafts.length} inquiries.</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {drafts.map((d, n) => (
+                          <span key={d.id} className={`flex items-center rounded-full border text-[13px] font-bold ${n === active ? 'bg-[#FFA08C] text-[#0d0b0a] border-[#FFA08C]' : 'border-[#3d332e] text-[#dcd2cd]'}`}>
+                            <button onClick={() => setActive(n)} className="pl-3 pr-2 py-1">
+                              Shipment {n + 1}: {d.polCode || d.pol || '?'} ➔ {d.podCode || d.pod || '?'}{Number(d.volumeCbm) > 0 ? ` · ${d.volumeCbm} CBM` : ''}
+                            </button>
+                            <button onClick={() => removeShipment(n)} className="pr-2.5 opacity-60 hover:opacity-100" title="Remove this shipment">×</button>
+                          </span>
+                        ))}
+                        <button onClick={addShipment} className="btn-dark !py-1 text-[13px]">+ Add shipment</button>
+                      </div>
+                    </div>
+                  )}
                   {dup && (
                     <div className="p-3 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)] text-sm text-amber-300 font-bold flex items-center justify-between gap-3">
                       <span>This looks like a duplicate of {dup.id} ({dup.shipperName}, logged {new Date(dup.receivedAt).toLocaleDateString('en-GB')}).</span>
@@ -509,7 +572,10 @@ export default function EmailIntakeModal({
               <span>Back</span>
             </button>
             <div className="flex flex-wrap items-center gap-2">
-              {kind === 'new_inquiry' && draft && (
+              {kind === 'new_inquiry' && draft && drafts.length > 1 && (
+                <button onClick={saveAllShipments} className="btn-coral">Save all {drafts.length} inquiries</button>
+              )}
+              {kind === 'new_inquiry' && draft && drafts.length === 1 && (
                 result?.missingDetails?.length > 0 ? (
                   <>
                     <CopyButton text={signedReply} label="Copy request" />

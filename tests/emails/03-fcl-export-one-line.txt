@@ -24,5 +24,6 @@ Sunglow Textiles Ltd
       "grossWeightKg": 38000,
       "incoterms": "FOB"
     }
-  ]
+  ],
+  "warns": false
 }

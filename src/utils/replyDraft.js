@@ -1,6 +1,6 @@
 // Builds the customer quotation reply for an inquiry and the links that open it
 // in the rep's email client. Two formats: FCL (rate per container) and LCL
-// (rate per W/M, with a minimum and separate origin / CFS / destination charges).
+// (rate per W/M, with separate origin / CFS / destination charges).
 import { pickSignature } from './signatures';
 
 const PLACEHOLDER_EMAILS = ['inquiry@client.com'];
@@ -70,16 +70,31 @@ export function defaultCharges(format, inquiry) {
     return [
       pickup && newCharge('Pickup / origin trucking', 'per shipment', cur),
       newCharge('Origin charges', '/ W/M', cur),
-      newCharge(isImport ? 'Destination CFS charges' : 'Origin CFS charges', '/ W/M', isImport ? 'INR' : cur),
-      newCharge('Destination charges (DO, documentation)', 'per BL', isImport ? 'INR' : cur),
+      !isImport && newCharge('Origin CFS charges', '/ W/M', 'INR'),
     ].filter(Boolean);
   }
   return [
     pickup && newCharge('Pickup / origin haulage', 'per container', cur),
     newCharge('Origin THC', 'per container', isImport ? cur : 'INR'),
     newCharge('BL / documentation fee', 'per BL', isImport ? cur : 'INR'),
-    newCharge('Destination THC', 'per container', isImport ? 'INR' : cur),
   ].filter(Boolean);
+}
+
+// Destination charges, itemised: THC, CFS, DO, weighment, ODC (in INR by default).
+export function defaultDestCharges(format) {
+  const per = format === 'LCL' ? '/ W/M' : 'per container';
+  return [
+    newCharge('THC', per, 'INR'),
+    newCharge('CFS', per, 'INR'),
+    newCharge('DO', 'per BL', 'INR'),
+    newCharge('Weighment', 'per shipment', 'INR'),
+    newCharge('ODC', 'per shipment', 'INR'),
+  ];
+}
+
+// The customer's email said destination charges are already agreed.
+export function destChargesAgreed(inquiry) {
+  return /destination charges as agreed/i.test(inquiry?.specialRequirements || '');
 }
 
 export function defaultRateUnit(inquiry) {
@@ -102,7 +117,8 @@ export function initialDraftFields(inquiry, currentUser) {
   return {
     format,
     charges: defaultCharges(format, inquiry),
-    minimum: format === 'LCL' ? '1 W/M' : '',
+    destAgreed: destChargesAgreed(inquiry),
+    destCharges: defaultDestCharges(format),
     signatureId: pickSignature(currentUser).id,
     contactPerson: inquiry.contactPerson || '',
     contactEmail: cleanEmail(inquiry.contactEmail),
@@ -198,7 +214,7 @@ export function buildReplyBody(inquiry, f, currentUser) {
   const freight = Number(f.rateAmount) > 0 ? formatRate(f.currency, f.rateAmount, f.rateUnit) : '[RATE]';
   const charges = (f.charges || []).filter(c => parseFloat(c.amount) > 0);
   const quote = [
-    line('Ocean freight', lcl && f.minimum ? `${freight} (minimum ${f.minimum})` : freight),
+    line('Ocean freight', freight),
     ...charges.map(chargeLine),
     f.carrier && line('Carrier', f.carrier),
     f.transitTime && line('Transit time', f.transitTime),
@@ -206,11 +222,13 @@ export function buildReplyBody(inquiry, f, currentUser) {
     line('Valid until', formatDate(f.validity)),
   ].filter(Boolean);
 
-  const signature = pickSignature(currentUser, f.signatureId).text.split('\n');
-  const terms = lcl
-    ? 'LCL rates are per W/M (1 CBM or 1,000 kg, whichever is higher). Rates are subject to space availability at the time of booking. Charges not listed above are extra at actuals.'
-    : 'Rates are subject to space and equipment availability at the time of booking. Origin and destination local charges are extra unless stated above.';
+  // Destination charges: one line when agreed, otherwise the filled-in items.
+  const destItems = (f.destCharges || []).filter(c => parseFloat(c.amount) > 0);
+  const destination = f.destAgreed
+    ? ['', line('Destination charges', 'As agreed')]
+    : destItems.length ? ['', 'DESTINATION CHARGES (at POD)', ...destItems.map(chargeLine)] : [];
 
+  const signature = pickSignature(currentUser, f.signatureId).text.split('\n');
   return [
     `Dear ${greetingName},`,
     '',
@@ -221,9 +239,8 @@ export function buildReplyBody(inquiry, f, currentUser) {
     '',
     `QUOTATION (Ref: ${inquiry.id}) – ${lcl ? 'LCL' : 'FCL'}`,
     ...quote,
+    ...destination,
     ...(f.remarks?.trim() ? ['', `Remarks: ${f.remarks.trim()}`] : []),
-    '',
-    terms,
     '',
     'Kindly confirm to proceed with the booking.',
     '',

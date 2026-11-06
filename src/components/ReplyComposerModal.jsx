@@ -9,6 +9,7 @@ import {
   formatRate,
   findPlaceholders,
   defaultCharges,
+  defaultDestCharges,
   newCharge,
   chargeableWM,
 } from '../utils/replyDraft';
@@ -75,17 +76,19 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
   const lcl = f.format === 'LCL';
   const wm = chargeableWM(f.volumeCbm, f.grossWeightKg);
   const signatures = signatureList(currentUser);
+  const destChargesAgreedNote = /destination charges as agreed/i.test(inquiry.specialRequirements || '');
 
   // Switching format resets the rate unit and the charge lines to that format's set.
   const switchFormat = (format) => setF(prev => ({
     ...prev,
     format,
     rateUnit: format === 'LCL' ? '/ W/M' : fclUnit(prev.containerType),
-    minimum: format === 'LCL' ? (prev.minimum || '1 W/M') : '',
     charges: defaultCharges(format, { ...inquiry, quotedCurrency: prev.currency }),
+    destCharges: defaultDestCharges(format),
     freeDays: format === 'LCL' ? '' : (prev.freeDays || '14 days combined demurrage/detention'),
   }));
   const setCharge = (id, key) => (e) => setF(prev => ({ ...prev, charges: prev.charges.map(c => (c.id === id ? { ...c, [key]: e.target.value } : c)) }));
+  const setDest = (id, key) => (e) => setF(prev => ({ ...prev, destCharges: prev.destCharges.map(c => (c.id === id ? { ...c, [key]: e.target.value } : c)) }));
   const removeCharge = (id) => setF(prev => ({ ...prev, charges: prev.charges.filter(c => c.id !== id) }));
   const addCharge = () => setF(prev => ({ ...prev, charges: [...prev.charges, newCharge('', lcl ? '/ W/M' : 'per container', prev.currency)] }));
 
@@ -127,7 +130,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
         {
           timestamp: now.toISOString(),
           action: `${revised ? `Revised quotation sent, round ${round}` : `Quotation reply sent via ${CHANNEL_LABELS[channel]}`} (${f.format} ${rate}${
-            f.charges.filter(c => parseFloat(c.amount) > 0).map(c => ` + ${c.name} ${formatRate(c.currency, c.amount, c.unit)}`).join('')})`,
+            f.charges.filter(c => parseFloat(c.amount) > 0).map(c => ` + ${c.name} ${formatRate(c.currency, c.amount, c.unit)}`).join('')}${
+            f.destAgreed ? ' + destination charges as agreed' : f.destCharges.filter(c => parseFloat(c.amount) > 0).map(c => ` + dest. ${c.name} ${formatRate(c.currency, c.amount, c.unit)}`).join('')})`,
           by: currentUser?.name || 'CS Desk',
         },
       ],
@@ -234,17 +238,12 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                     {CURRENCIES.map(([c, sym]) => <option key={c} value={c}>{c} ({sym})</option>)}
                   </select>
                 </Field>
-                <Field label="Ocean freight" missing={missingKeys.has('rateAmount')} className={lcl ? 'col-span-3' : 'col-span-5'}>
+                <Field label="Ocean freight" missing={missingKeys.has('rateAmount')} className="col-span-5">
                   <input type="number" min="0" value={f.rateAmount} onChange={set('rateAmount')} className="scm-input w-full font-mono font-bold text-emerald-400" placeholder={lcl ? 'e.g. 40' : 'e.g. 1450'} />
                 </Field>
-                <Field label="Per" className={lcl ? 'col-span-3' : 'col-span-4'}>
+                <Field label="Per" className="col-span-4">
                   <input value={f.rateUnit} onChange={set('rateUnit')} className="scm-input w-full" />
                 </Field>
-                {lcl && (
-                  <Field label="Minimum" className="col-span-3">
-                    <input value={f.minimum} onChange={set('minimum')} className="scm-input w-full" placeholder="1 W/M" />
-                  </Field>
-                )}
               </div>
 
               <div className="mb-3 rounded-lg border border-[#342b27] overflow-hidden">
@@ -266,6 +265,40 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                   ))}
                   {f.charges.length === 0 && <div className="px-3 py-2 text-[12.5px] text-[#8a7d77]">No other charges.</div>}
                 </div>
+              </div>
+
+              <div className="mb-3 rounded-lg border border-[#342b27] overflow-hidden">
+                <div className="px-3 py-1.5 bg-[#110e0d] text-[12.5px] font-extrabold text-[#dcd2cd] flex items-center justify-between gap-2">
+                  <span>Destination charges</span>
+                  <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden">
+                    {[[false, 'Itemised'], [true, 'As agreed']].map(([v, label]) => (
+                      <button key={label} type="button" onClick={() => setF(prev => ({ ...prev, destAgreed: v }))}
+                        className={`px-2.5 py-0.5 text-[12px] font-extrabold ${f.destAgreed === v ? 'bg-[#FFA08C] text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {f.destAgreed ? (
+                  <div className="px-3 py-2 text-[12.5px] text-[#dcd2cd]">
+                    The quote will end with <b className="text-white">"Destination charges: As agreed"</b>.
+                    {destChargesAgreedNote && <span className="text-emerald-400 font-bold"> (the customer's email says they're agreed)</span>}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#1f1916]">
+                    {f.destCharges.map(c => (
+                      <div key={c.id} className="grid grid-cols-12 gap-1.5 p-1.5 items-center">
+                        <span className="col-span-5 text-[13px] font-bold text-white pl-1">{c.name}</span>
+                        <select value={c.currency} onChange={setDest(c.id, 'currency')} className="scm-select col-span-2 !py-1 text-[13px]">
+                          {CURRENCIES.map(([cur]) => <option key={cur} value={cur}>{cur}</option>)}
+                        </select>
+                        <input type="number" min="0" value={c.amount} onChange={setDest(c.id, 'amount')} className="scm-input col-span-2 !py-1 text-[13px] font-mono" placeholder="Amount" />
+                        <input value={c.unit} onChange={setDest(c.id, 'unit')} className="scm-input col-span-3 !py-1 text-[13px]" placeholder="per …" />
+                      </div>
+                    ))}
+                    <div className="px-3 py-1.5 text-[12px] text-[#8a7d77]">Lines left blank are not put in the reply.</div>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Carrier">

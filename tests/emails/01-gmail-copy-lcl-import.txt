@@ -41,5 +41,6 @@ e: imports@bluehaven-logistics.in | m: +91 98200 11122
       "packages": "42 cartons",
       "incoterms": "FOB"
     }
-  ]
+  ],
+  "warns": false
 }

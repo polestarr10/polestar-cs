@@ -51,5 +51,6 @@ Ironcrest Engineering Co. Ltd
       "incoterms": "EXW",
       "pickupAddress": "Plant 3, 45 Hwajeon Industrial Road, Gangseo-gu, Busan 46744, South Korea"
     }
-  ]
+  ],
+  "warns": false
 }
