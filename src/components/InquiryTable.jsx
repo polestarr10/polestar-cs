@@ -121,6 +121,9 @@ export default function InquiryTable({
                     <div className="font-semibold text-white max-w-[260px] truncate" title={item.shipperName}>
                       {item.shipperName}
                     </div>
+                    <div className={`text-[12px] ${item.salesMember ? 'text-[#b3a59e]' : 'text-amber-300/80'}`}>
+                      Sales: {item.salesMember || 'not assigned'}
+                    </div>
                   </td>
 
                   {/* Col 4: ROUTE */}

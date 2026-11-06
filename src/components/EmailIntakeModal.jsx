@@ -6,6 +6,8 @@ import {
 import confetti from 'canvas-confetti';
 import { readEmailWithRules } from '../utils/ruleReader';
 import { findPlaceholders } from '../utils/replyDraft';
+import { suggestSalesMember } from '../utils/salesTeam';
+import SalesSelect, { newSalesMember } from './SalesSelect';
 import { sampleEmails } from '../data/sampleEmails';
 import { uploadScreenshotToImageKit } from '../lib/imagekit';
 import {
@@ -60,8 +62,7 @@ let aiUnavailable = false;
 
 export default function EmailIntakeModal({
   isOpen, onClose, inquiries, currentUser,
-  onCreateInquiry, onUpdateInquiry, onOpenComposer, onOpenConfirm,
-}) {
+  onCreateInquiry, onUpdateInquiry, onOpenComposer, onOpenConfirm, onSaveSalesTeam}) {
   const [stage, setStage] = useState('input'); // input | working | result | error
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
@@ -140,9 +141,11 @@ export default function EmailIntakeModal({
     // One draft per shipment; ids are kept unique across the batch.
     const ships = res.shipments?.length ? res.shipments : [res.shipment];
     const taken = [...inquiries];
+    const suggested = suggestSalesMember(res.shipment, inquiries, currentUser?.salesTeam);
     setDrafts(ships.map((ship, n) => {
       const d = resultToInquiry({ ...res, shipment: ship, summary: ships.length > 1 ? `${res.summary} (shipment ${n + 1} of ${ships.length})` : res.summary },
         { existing: taken, currentUser, rawText: text, screenshotUrl });
+      if (suggested) Object.assign(d, { salesMemberId: suggested.id, salesMember: suggested.name });
       taken.push(d);
       return d;
     }));
@@ -432,6 +435,22 @@ export default function EmailIntakeModal({
 
               {kind === 'new_inquiry' && draft && (
                 <div className="space-y-3">
+                  <div className={`p-3 rounded-xl border-2 flex flex-wrap items-center gap-3 ${draft.salesMemberId ? 'border-emerald-500/50 bg-[rgba(16,185,129,0.06)]' : 'border-amber-400/60 bg-[rgba(251,191,36,0.08)]'}`}>
+                    <span className="text-sm font-extrabold text-white">
+                      Register {drafts.length > 1 ? `these ${drafts.length} inquiries` : 'this inquiry'} under sales member:
+                    </span>
+                    <div className="w-64">
+                      <SalesSelect value={draft.salesMemberId} team={currentUser?.salesTeam} fallbackName={draft.salesMember}
+                        onChange={(m) => setDrafts(prev => prev.map(d => ({ ...d, salesMemberId: m?.id || '', salesMember: m?.name || '' })))}
+                        onAddNew={onSaveSalesTeam ? async (name) => {
+                          const added = newSalesMember(name);
+                          const err = await onSaveSalesTeam([...(currentUser?.salesTeam || []), added]);
+                          if (err) { window.alert(`Couldn't add ${name}: ${err}`); return null; }
+                          return added;
+                        } : undefined} />
+                    </div>
+                    {!draft.salesMemberId && <span className="text-[12.5px] text-amber-300 font-bold">Not assigned yet</span>}
+                  </div>
                   {result?.multipleHint && drafts.length === 1 && (
                     <div className="p-3 rounded-xl border-2 border-[#f87171]/70 bg-[rgba(248,113,113,0.1)] text-sm flex flex-wrap items-center justify-between gap-3">
                       <span className="text-[#fca5a5] font-bold">

@@ -5,7 +5,8 @@ import {
   ChevronDown,
   LogOut,
   UserPen,
-  PenLine
+  PenLine,
+  Users
 } from 'lucide-react';
 
 export default function Header({
@@ -13,7 +14,8 @@ export default function Header({
   currentUser,
   onSignOut,
   onEditProfile,
-  onManageSignatures
+  onManageSignatures,
+  onManageSalesTeam
 }) {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
@@ -78,6 +80,14 @@ export default function Header({
                     className="w-full text-left px-3 py-2 text-[13.5px] hover:bg-[rgba(255,160,140,0.12)] text-slate-300 hover:text-[#FFA08C] flex items-center gap-2"
                   >
                     <PenLine size={14} /> Email signatures
+                  </button>
+                )}
+                {onManageSalesTeam && (
+                  <button
+                    onClick={() => { setUserDropdownOpen(false); onManageSalesTeam(); }}
+                    className="w-full text-left px-3 py-2 text-[13.5px] hover:bg-[rgba(255,160,140,0.12)] text-slate-300 hover:text-[#FFA08C] flex items-center gap-2"
+                  >
+                    <Users size={14} /> My sales team
                   </button>
                 )}
                 {onSignOut && (

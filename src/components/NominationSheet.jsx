@@ -87,6 +87,7 @@ function BookingDetails({ n, onClose, onEdit, onViewInquiry }) {
             {info('CBM / TEU', `${n.volumeCbm || '—'} CBM · ${fmtTeu(n.teu)} TEU`)}
             {info('Final rate', n.rate)}
             {info('Handled by', n.handledBy)}
+            {info('Sales member', n.salesMember)}
           </div>
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[#342b27]">
             {field('Booking / nomination no.', 'bookingRef', n.bookingRef)}
@@ -192,6 +193,7 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
               <th>Inquiry Ref</th>
               <th>Booking No.</th>
               <th>Customer</th>
+              <th>Sales</th>
               <th>Route</th>
               <th>Equipment</th>
               <th className="num">CBM</th>
@@ -203,7 +205,7 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
             {rows.length === 0 ? (
               <tr>
                 <td className="sheet-rownum">1</td>
-                <td colSpan={9} className="!py-10 text-center text-[#dcd2cd]">
+                <td colSpan={10} className="!py-10 text-center text-[#dcd2cd]">
                   No nominations {period === 'all' ? 'yet' : 'in this period'}. Click <b className="text-white">Add nomination</b> to convert a quoted inquiry.
                 </td>
               </tr>
@@ -214,6 +216,7 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
                 <td className="font-mono font-extrabold text-[#FFA08C]">{n.id}</td>
                 <EditableCell value={n.bookingRef} className="font-mono font-bold" onSave={(v) => onEditNomination(n.inquiry, { bookingRef: v.trim() })} />
                 <td className="font-semibold text-white max-w-[260px] truncate" title={n.shipperName}>{n.shipperName}</td>
+                <td className="max-w-[140px] truncate" title={n.salesMember}>{n.salesMember || <span className="text-[#6f625c]">—</span>}</td>
                 <td className="font-mono whitespace-nowrap">{n.pol} ➔ {n.pod}</td>
                 <td>{n.equipment}</td>
                 <td className="num font-mono">{n.volumeCbm || '—'}</td>
@@ -226,7 +229,7 @@ export default function NominationSheet({ inquiries, onViewDetails, onAddNominat
             <tfoot>
               <tr>
                 <td className="sheet-rownum"></td>
-                <td colSpan={6} className="font-extrabold">TOTAL ({sum.shipments} shipments)</td>
+                <td colSpan={7} className="font-extrabold">TOTAL ({sum.shipments} shipments)</td>
                 <td className="num font-mono font-extrabold">{Number(sum.volumeCbm.toFixed(2))}</td>
                 <td colSpan={2}></td>
               </tr>

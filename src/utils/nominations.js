@@ -44,6 +44,7 @@ export function toNomination(inquiry) {
     carrier: n.carrier || inquiry.preferredCarrier || '',
     etd: n.etd || '',
     handledBy: n.confirmedByRep || inquiry.assignedTo || '',
+    salesMember: inquiry.salesMember || '',
     remarks: n.remarks || '',
   };
 }
@@ -190,6 +191,7 @@ export function exportNominationReport(nominations, range, preparedBy) {
     'Carrier': n.carrier,
     'ETD': n.etd,
     'Handled By': n.handledBy,
+    'Sales Member': n.salesMember,
     'Remarks': n.remarks,
   }));
 

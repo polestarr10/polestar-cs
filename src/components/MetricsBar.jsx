@@ -8,7 +8,10 @@ export default function MetricsBar({
   statusFilter,
   setStatusFilter,
   onResetFilters,
-  onClearAll
+  onClearAll,
+  salesFilter = 'ALL',
+  setSalesFilter,
+  salesList = []
 }) {
   const total = inquiries.length;
   const quotedCount = inquiries.filter(i => i.isQuoted || i.status === 'QUOTED_REPLIED' || i.status === 'BOOKING_WON').length;
@@ -61,6 +64,20 @@ export default function MetricsBar({
           <option value="BOOKING_WON">Booking Won</option>
         </select>
 
+        {/* Sales member */}
+        {setSalesFilter && (
+          <select
+            value={salesFilter}
+            onChange={(e) => setSalesFilter(e.target.value)}
+            className="scm-select text-[13.5px] py-1 px-3 font-bold rounded-full"
+            title="Show one sales member's inquiries"
+          >
+            <option value="ALL">All sales members</option>
+            {salesList.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+            <option value="NONE">No sales member</option>
+          </select>
+        )}
+
         {/* Search */}
         <div className="relative min-w-[200px]">
           <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
@@ -81,7 +98,7 @@ export default function MetricsBar({
           )}
         </div>
 
-        {(searchTerm || statusFilter !== 'ALL') && (
+        {(searchTerm || statusFilter !== 'ALL' || salesFilter !== 'ALL') && (
           <button
             onClick={onResetFilters}
             className="text-[13px] text-[#FFA08C] hover:text-white underline font-bold px-1"

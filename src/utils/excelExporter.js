@@ -83,6 +83,28 @@ export function reportMetrics(inquiries, range = null, now = Date.now()) {
   };
 }
 
+// Per sales member, for the period: what came in, was quoted, booked and lost.
+export function salesBreakdown(inquiries, range = null) {
+  const rows = new Map();
+  const row = (i) => {
+    const key = i.salesMemberId || i.salesMember || '';
+    if (!rows.has(key)) rows.set(key, { name: i.salesMember || 'Not assigned', received: 0, quotes: 0, won: 0, cbm: 0, lost: 0, open: 0 });
+    return rows.get(key);
+  };
+  for (const i of inquiries) {
+    const r = row(i);
+    if (inRange(i.receivedAt, range)) r.received++;
+    r.quotes += entriesInRange(i, range, QUOTE_RE).length;
+    if (i.status === 'BOOKING_WON' && inRange(i.confirmedAt, range)) { r.won++; r.cbm += Number(i.volumeCbm) || 0; }
+    if (i.status === 'CLOSED_LOST' && entriesInRange(i, range, LOST_RE).length) r.lost++;
+    if (!['BOOKING_WON', 'CLOSED_LOST'].includes(i.status)) r.open++;
+  }
+  return [...rows.values()]
+    .filter(r => r.received || r.quotes || r.won || r.lost || r.open)
+    .map(r => ({ ...r, cbm: Math.round(r.cbm * 100) / 100 }))
+    .sort((a, b) => (a.name === 'Not assigned') - (b.name === 'Not assigned') || b.cbm - a.cbm || b.received - a.received);
+}
+
 // What the inquiry is waiting on, from its real state and history.
 function pendingReason(i, now) {
   if (isAwaitingReply(i)) {
@@ -158,6 +180,7 @@ export function exportInquiriesToExcel(inquiries, opts = {}) {
     'HSN Code': i.hsnCode || '',
     'Pickup Address': i.pickupAddress || '',
     'Handled By': i.assignedTo || '',
+    'Sales Member': i.salesMember || '',
     'Replied?': i.hasReplied ? 'Yes' : 'No',
     'Replied At': fmtDateTime(i.repliedAt),
     'Reply Time (min)': typeof i.responseTatMinutes === 'number' ? i.responseTatMinutes : '',
@@ -197,6 +220,19 @@ export function exportInquiriesToExcel(inquiries, opts = {}) {
   const pending = XLSX.utils.json_to_sheet(pendingRows.length ? pendingRows : [{ Note: 'Nothing pending.' }]);
   pending['!cols'] = [{ wch: 9 }, { wch: 16 }, { wch: 30 }, { wch: 20 }, { wch: 36 }, { wch: 20 }, { wch: 55 }, { wch: 24 }, { wch: 8 }];
   XLSX.utils.book_append_sheet(wb, pending, 'Pending_Actions');
+
+  const bySales = salesBreakdown(inquiries, range).map(r => ({
+    'Sales Member': r.name,
+    'New inquiries': r.received,
+    'Quotes sent': r.quotes,
+    'Bookings': r.won,
+    'CBM booked': r.cbm,
+    'Lost': r.lost,
+    'Open now': r.open,
+  }));
+  const sales = XLSX.utils.json_to_sheet(bySales.length ? bySales : [{ Note: 'No inquiries in this period.' }]);
+  sales['!cols'] = [{ wch: 26 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, sales, 'By Sales Member');
 
   const filename = `Polestar_CS_Report_${opts.fileStamp || new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);

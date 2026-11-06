@@ -20,6 +20,8 @@ import Sidebar from './components/Sidebar';
 import TeamReport from './components/TeamReport';
 import FollowUpModal from './components/FollowUpModal';
 import SignatureManager from './components/SignatureManager';
+import SalesTeamManager from './components/SalesTeamManager';
+import { salesOptions, salesKey } from './utils/salesTeam';
 import useFollowUpAlerts from './hooks/useFollowUpAlerts';
 import { isAwaitingReply } from './hooks/useReplyReminders';
 import { fetchIsManager, syncProfileDb, fetchTargets, saveTargetDb, weekKey } from './lib/team';
@@ -38,8 +40,10 @@ import { CheckCircle2, AlertCircle, CloudOff, RefreshCw } from 'lucide-react';
 
 const STORAGE_KEY = 'polestar_cs_inquiries_live_clean_v1';
 
-export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures }) {
+export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures, onSaveSalesTeam }) {
   const [signaturesOpen, setSignaturesOpen] = useState(false);
+  const [salesTeamOpen, setSalesTeamOpen] = useState(false);
+  const [salesFilter, setSalesFilter] = useState('ALL');
   const [inquiries, setInquiries] = useState(() => {
     try {
       const saved = readUserItem(STORAGE_KEY, currentUser.id);
@@ -221,10 +225,12 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         (item.commodity && item.commodity.toLowerCase().includes(q));
 
       const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
+      const matchesSales = salesFilter === 'ALL' || (salesFilter === 'NONE' ? !salesKey(item) : salesKey(item) === salesFilter);
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesSales;
     });
-  }, [inquiries, searchTerm, statusFilter]);
+  }, [inquiries, searchTerm, statusFilter, salesFilter]);
+  const salesList = useMemo(() => salesOptions(currentUser.salesTeam, inquiries), [currentUser.salesTeam, inquiries]);
 
   // Handlers with Live Supabase Sync
   const handleSaveInquiry = async (newInquiry, { openComposer = true } = {}) => {
@@ -419,6 +425,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
   const handleResetFilters = () => {
     setSearchTerm('');
     setStatusFilter('ALL');
+    setSalesFilter('ALL');
   };
 
   const handleClearAllInquiries = async () => {
@@ -444,6 +451,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onSignOut={onSignOut}
         onEditProfile={onEditProfile}
         onManageSignatures={onSaveSignatures ? () => setSignaturesOpen(true) : null}
+        onManageSalesTeam={onSaveSalesTeam ? () => setSalesTeamOpen(true) : null}
       />
 
       <div className="flex-1 flex min-h-0">
@@ -526,6 +534,9 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
               setSearchTerm={setSearchTerm}
               statusFilter={statusFilter}
               setStatusFilter={setStatusFilter}
+              salesFilter={salesFilter}
+              setSalesFilter={setSalesFilter}
+              salesList={salesList}
               onResetFilters={handleResetFilters}
               onClearAll={handleClearAllInquiries}
             />
@@ -565,6 +576,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onUpdateInquiry={handleUpdateInquiry}
         onOpenComposer={handleOpenQuickQuote}
         onOpenConfirm={(prefilled) => setConfirmTarget(prefilled)}
+        onSaveSalesTeam={onSaveSalesTeam}
       />
 
       <InquiryDetailModal
@@ -574,6 +586,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onUpdateStatus={handleUpdateStatus}
         onSaveUpdates={handleSaveUpdates}
         onOpenReply={handleOpenQuickQuote}
+        salesTeam={currentUser.salesTeam}
       />
 
       <ExportModal
@@ -581,6 +594,17 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onClose={() => setExportModalOpen(false)}
         inquiries={inquiries}
         currentUser={currentUser}
+      />
+
+      <SalesTeamManager
+        isOpen={salesTeamOpen}
+        onClose={() => setSalesTeamOpen(false)}
+        currentUser={currentUser}
+        onSave={async (team) => {
+          const err = await onSaveSalesTeam(team);
+          if (!err) showToast(`Sales team saved (${team.length} member${team.length === 1 ? '' : 's'})`, 'success');
+          return err;
+        }}
       />
 
       <SignatureManager

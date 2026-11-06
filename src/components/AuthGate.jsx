@@ -9,8 +9,8 @@ function initials(name) {
 }
 
 // id scopes this rep's data: their database rows and this device's cache.
-function toUser({ id, name, role, email, signatures }) {
-  return { id, name, role, email, signatures: signatures || [], avatar: initials(name) };
+function toUser({ id, name, role, email, signatures, salesTeam }) {
+  return { id, name, role, email, signatures: signatures || [], salesTeam: salesTeam || [], avatar: initials(name) };
 }
 
 function loadLocalProfile() {
@@ -161,6 +161,7 @@ export default function AuthGate({ children }) {
       onEditProfile: () => setEditing(true),
       onSignOut: null,
       onSaveSignatures: (signatures) => saveLocal({ signatures }),
+      onSaveSalesTeam: (salesTeam) => saveLocal({ salesTeam }),
     });
   }
 
@@ -170,7 +171,7 @@ export default function AuthGate({ children }) {
   if (!session) return <SignIn />;
 
   const meta = session.user.user_metadata || {};
-  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email, signatures: meta.signatures || [] };
+  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email, signatures: meta.signatures || [], salesTeam: meta.sales_team || [] };
   const saveRemote = async (p) => {
     const { data, error } = await supabase.auth.updateUser({ data: { full_name: p.name, role: p.role } });
     if (error) return error.message;
@@ -192,5 +193,11 @@ export default function AuthGate({ children }) {
     onEditProfile: () => setEditing(true),
     onSignOut: () => supabase.auth.signOut(),
     onSaveSignatures: saveSignatures,
+    onSaveSalesTeam: async (team) => {
+      const { data, error } = await supabase.auth.updateUser({ data: { sales_team: team } });
+      if (error) return error.message;
+      setSession(s => ({ ...s, user: data.user }));
+      return null;
+    },
   });
 }

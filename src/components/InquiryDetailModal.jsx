@@ -13,6 +13,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import SalesSelect from './SalesSelect';
 import { initialDraftFields, buildReplySubject, buildReplyBody, getMissingFields } from '../utils/replyDraft';
 
 export default function InquiryDetailModal({ 
@@ -21,8 +22,7 @@ export default function InquiryDetailModal({
   inquiry, 
   onUpdateStatus, 
   onSaveUpdates,
-  onOpenReply
-}) {
+  onOpenReply, salesTeam}) {
   const [activeTab, setActiveTab] = useState('edit');
   const [copiedQuote, setCopiedQuote] = useState(false);
   const [formData, setFormData] = useState(null);
@@ -257,6 +257,13 @@ ${buildReplyBody(formData, draftFields)}`;
                   </div>
                 </div>
 
+              </div>
+
+              {/* Sales member who brought the inquiry in */}
+              <div>
+                <label className="text-[12.5px] text-[#b3a59e] block">Sales Member</label>
+                <SalesSelect value={formData.salesMemberId} team={salesTeam} fallbackName={formData.salesMember}
+                  onChange={(m) => { handleFieldChange('salesMemberId', m?.id || ''); handleFieldChange('salesMember', m?.name || ''); }} />
               </div>
 
               {/* Customer address */}
