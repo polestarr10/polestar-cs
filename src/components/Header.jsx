@@ -6,7 +6,8 @@ import {
   LogOut,
   UserPen,
   PenLine,
-  Users
+  Users,
+  ReceiptText
 } from 'lucide-react';
 
 export default function Header({
@@ -15,7 +16,8 @@ export default function Header({
   onSignOut,
   onEditProfile,
   onManageSignatures,
-  onManageSalesTeam
+  onManageSalesTeam,
+  onManageTariff
 }) {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
@@ -88,6 +90,14 @@ export default function Header({
                     className="w-full text-left px-3 py-2 text-[13.5px] hover:bg-[rgba(255,160,140,0.12)] text-slate-300 hover:text-[#FFA08C] flex items-center gap-2"
                   >
                     <Users size={14} /> My sales team
+                  </button>
+                )}
+                {onManageTariff && (
+                  <button
+                    onClick={() => { setUserDropdownOpen(false); onManageTariff(); }}
+                    className="w-full text-left px-3 py-2 text-[13.5px] hover:bg-[rgba(255,160,140,0.12)] text-slate-300 hover:text-[#FFA08C] flex items-center gap-2"
+                  >
+                    <ReceiptText size={14} /> My rates
                   </button>
                 )}
                 {onSignOut && (

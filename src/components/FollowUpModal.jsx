@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { copyQuote } from '../utils/richCopy';
 import { X, Copy, Check, Send, Repeat, XCircle } from 'lucide-react';
 import { buildFollowUpSubject, buildFollowUpBody, followUpState, formatQuiet, MAX_FOLLOW_UPS } from '../utils/followUps';
 import { cleanEmail } from '../utils/replyDraft';
@@ -25,7 +26,7 @@ export default function FollowUpModal({ isOpen, onClose, inquiry, onMarkSent, on
   const to = cleanEmail(inquiry.contactEmail);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(body);
+    copyQuote(body);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };

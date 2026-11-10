@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { copyQuote } from '../utils/richCopy';
 import { 
   X, 
   Building2, 
@@ -60,7 +61,7 @@ ${buildReplyBody(formData, draftFields)}`;
 
   const handleCopyEmail = () => {
     if (quoteMissing.length) return;
-    navigator.clipboard.writeText(quoteEmailBody);
+    copyQuote(quoteEmailBody);
     setCopiedQuote(true);
     setTimeout(() => setCopiedQuote(false), 2000);
   };
@@ -258,6 +259,21 @@ ${buildReplyBody(formData, draftFields)}`;
                 </div>
 
               </div>
+
+              {/* Internal buy / sell note (ex-works); never put in the quote */}
+              {(/^EXW/i.test(formData.incoterms || '') || formData.buyCharge || formData.sellCharge) && (
+                <div className="p-3 rounded-xl border border-dashed border-sky-500/50 bg-[rgba(14,165,233,0.06)] grid grid-cols-2 gap-2">
+                  <div className="col-span-2 text-[12.5px] font-extrabold text-sky-300 uppercase tracking-wider">Internal note: not sent to the customer</div>
+                  <div>
+                    <label className="text-[12.5px] text-[#b3a59e] block">Buy charge (our cost)</label>
+                    <input type="text" value={formData.buyCharge || ''} onChange={(e) => handleFieldChange('buyCharge', e.target.value)} className="scm-input text-sm w-full font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[12.5px] text-[#b3a59e] block">Sell charge (to customer)</label>
+                    <input type="text" value={formData.sellCharge || ''} onChange={(e) => handleFieldChange('sellCharge', e.target.value)} className="scm-input text-sm w-full font-mono" />
+                  </div>
+                </div>
+              )}
 
               {/* Sales member who brought the inquiry in */}
               <div>

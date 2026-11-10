@@ -39,6 +39,45 @@ export const PORT_MAP = [
   { name: "Colombo", code: "LKCMB", country: "Sri Lanka", keywords: ["colombo", "lkcmb"] },
 ];
 
+// The client's main ports: offered first in the POL/POD fields.
+export const MAIN_PORTS = ['Shanghai', 'Shenzhen', 'Ningbo', 'Nhava Sheva / JNPT'];
+
+// Port names for the POL/POD pick lists: main ports first, then the rest.
+export function portChoices() {
+  return [...MAIN_PORTS, ...PORT_MAP.map(p => p.name).filter(n => !MAIN_PORTS.includes(n))];
+}
+
+// The code for a port name picked or typed ("Ningbo" -> CNNGB), or "".
+export function portCodeFor(name) {
+  const known = findPort(name || '');
+  return known ? known.code : '';
+}
+
+const PICKUP_LABELS = ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From'];
+
+// Where in China -> the port cargo from there usually sails from.
+const REGION_PORTS = [
+  ['CNNGB', /\b(Ningbo|Jinhua|Yiwu|Wuyi|Yongkang|Hangzhou|Wenzhou|Taizhou|Shaoxing|Huzhou|Jiaxing|Lishui|Quzhou|Zhoushan|Cixi|Yuyao|Zhejiang|Jiangxi|Nanchang)\b|宁波|金华|义乌|杭州|温州|浙江/i],
+  ['CNSZX', /\b(Shenzhen|Guangzhou|Dongguan|Foshan|Zhongshan|Huizhou|Jiangmen|Zhuhai|Shantou|Yunfu|Zhaoqing|Qingyuan|Shunde|Guangdong|Guangxi|Nanning|Hunan|Changsha)\b|深圳|广州|东莞|佛山|中山|广东/i],
+  ['CNSHA', /\b(Shanghai|Suzhou|Wuxi|Nanjing|Changzhou|Nantong|Kunshan|Taicang|Yangzhou|Zhenjiang|Jiangsu|Anhui|Hefei|Wuhu|Hubei|Wuhan|Xiaogan|Hanchuan|Jingzhou|Yichang|Henan|Zhengzhou|Sichuan|Chengdu|Chongqing)\b|上海|苏州|江苏|湖北|武汉/i],
+  ['CNTAO', /\b(Qingdao|Shandong|Jinan|Yantai|Weifang|Weihai|Rizhao)\b|青岛|山东/i],
+  ['CNTXG', /\b(Tianjin|Hebei|Beijing|Shijiazhuang|Tangshan)\b|天津|河北|北京/i],
+  ['CNXMN', /\b(Xiamen|Fujian|Fuzhou|Quanzhou|Jinjiang|Zhangzhou|Putian)\b|厦门|福建/i],
+];
+
+// Suggests the usual port for a Chinese place (the first place named wins), or null.
+export function suggestPortFromPlace(text) {
+  if (!text) return null;
+  let best = null;
+  for (const [code, re] of REGION_PORTS) {
+    const m = re.exec(text);
+    if (m && (!best || m.index < best.index)) best = { code, index: m.index, place: m[1] || m[0] };
+  }
+  if (!best) return null;
+  const port = PORT_MAP.find(p => p.code === best.code);
+  return port ? { port, place: best.place } : null;
+}
+
 const FREE_MAIL = ["gmail", "yahoo", "hotmail", "outlook", "rediffmail", "live", "icloud", "proton"];
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -290,8 +329,8 @@ function unlabelledSignatureAddress(lines) {
 // row per shipment. Anything that only *might* be several shipments is flagged.
 
 // Fields that belong to each shipment; contact, company, addresses etc. are shared.
-const PER_SHIPMENT = ['pol', 'polCode', 'pod', 'podCode', 'direction', 'routingMode', 'containerType', 'containerCount',
-  'commodity', 'grossWeightKg', 'volumeCbm', 'packages', 'dimensions', 'hsnCode', 'incoterms', 'cargoReadyDate'];
+const PER_SHIPMENT = ['pol', 'polCode', 'polSuggested', 'pod', 'podCode', 'direction', 'routingMode', 'containerType', 'containerCount',
+  'commodity', 'grossWeightKg', 'volumeCbm', 'volumeCbmCalculated', 'packages', 'dimensions', 'hsnCode', 'incoterms', 'cargoReadyDate'];
 const SECTION_HEADING = /^[\s>*•-]*(?:shipment|inquiry|enquiry|option|lot|consignment|cargo|lane)\s*(?:no\.?\s*)?[#-]?\s*\(?\d{1,2}\)?\s*[:.)\-–]?\s*/i;
 const POL_LABEL = /^[\s>*•-]*(?:\d{1,2}[.)]\s*)?(?:pol|port of loading|loading port|origin port|port of origin)\s*[:\-–]/i;
 const SIGN_OFF = /^\s*(?:(?:best|warm|kind)\s+)?regards|^\s*thanks|^\s*thank you|^\s*sincerely/i;
@@ -358,8 +397,12 @@ export function splitShipments(raw, headers, base) {
     s.grossWeightKg = Number(p.grossWeightKg) || 0;
     s.volumeCbm = Number(p.volumeCbm) || 0;
     s.containerCount = Number(p.containerCount) || 0;
-    // Shared terms / mode apply when a shipment doesn't state its own.
-    if (!s.incoterms) s.incoterms = base.incoterms || '';
+    // Shared terms / mode apply when a shipment doesn't state its own (a term
+    // stated anywhere in the email beats one assumed for the shipment).
+    if (!s.incoterms || p.incotermsAssumed) {
+      s.incoterms = base.incoterms || s.incoterms;
+      s.incotermsAssumed = Boolean(base.incotermsAssumed);
+    }
     if (!s.containerType) {
       s.containerType = s.volumeCbm > 0 && !/\d\s*x?\s*(20|40|45)/.test(base.containerType || '') ? 'LCL' : base.containerType || '';
       s.routingMode = s.containerType === 'LCL' ? 'Ocean LCL' : base.routingMode;
@@ -445,6 +488,42 @@ function fixDimensions(text) {
     return parts ? `${parts.join(' × ')} ${unit.toLowerCase()}` : whole;
   });
   return t.replace(/\s+/g, ' ').trim();
+}
+
+// ---- CBM from dimensions ----
+// "110 × 110 × 100 cm", "L-1140mm, W-750mm, H-830mm", "1000 × 1000 × 800 mm × 3 pallets",
+// "40x48x50 inch". Sizes are separated by ";". Each size counts once, unless it says
+// how many ("× 3 pallets", "(2 pallets)"), or it is the only size and the email
+// gives a package count (then every package is that size).
+const TO_METRE = { mm: 0.001, cm: 0.01, m: 1, in: 0.0254, inch: 0.0254, inches: 0.0254, '"': 0.0254 };
+const UNIT = '(mm|cm|m|inch(?:es)?|in|")?';
+const NUM = '(\\d+(?:\\.\\d+)?)';
+
+function sizeInMetres(text) {
+  const x = text.match(new RegExp(`${NUM}\\s*${UNIT}\\s*[x×*]\\s*${NUM}\\s*${UNIT}\\s*[x×*]\\s*${NUM}\\s*${UNIT}`, 'i'))
+    // (separators written as an alternation: a bracketed list here is misread by the styling tool)
+    || text.match(new RegExp(`\\bL\\s*(?:-|:|=|\\.)?\\s*${NUM}\\s*${UNIT}[^\\d]{0,12}?\\bW\\s*(?:-|:|=|\\.)?\\s*${NUM}\\s*${UNIT}[^\\d]{0,12}?\\bH\\s*(?:-|:|=|\\.)?\\s*${NUM}\\s*${UNIT}`, 'i'));
+  if (!x) return null;
+  const nums = [x[1], x[3], x[5]].map(Number);
+  let unit = (x[2] || x[4] || x[6] || (text.match(/\b(mm|cm|inch(?:es)?|in)\b|\d\s*(m)\b/i) || []).slice(1).find(Boolean) || '').toLowerCase();
+  if (!unit) unit = Math.max(...nums) > 300 ? 'mm' : Math.max(...nums) > 3 ? 'cm' : 'm'; // guess from the size
+  const f = TO_METRE[unit] || 0.01;
+  return nums.reduce((v, n) => v * n * f, 1);
+}
+
+export function cbmFromDimensions(dimensions, packages = '') {
+  const sizes = (dimensions || '').split(/\s*;\s*/).filter(Boolean);
+  if (!sizes.length) return 0;
+  const pkgCount = Number(((packages || '').match(/=\s*(\d+)/) || (packages || '').match(/^\s*(\d+)/) || [])[1]) || 0;
+  let total = 0;
+  for (const size of sizes) {
+    const m3 = sizeInMetres(size);
+    if (!m3) return 0; // one size we can't read: don't guess a total
+    const n = Number((size.match(new RegExp(`(?:[x×*]|\\()\\s*(\\d{1,4})\\s*(?:nos?\\.?\\s*)?${PKG_KIND}`, 'i')) || [])[1])
+      || (sizes.length === 1 && pkgCount ? pkgCount : 1);
+    total += m3 * n;
+  }
+  return Math.round(total * 1000) / 1000;
 }
 
 // Package dimensions, one size or several (one line per box):
@@ -642,6 +721,16 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const importHint = /\bimports?\b/i.test(raw) && !/\bexports?\b/i.test(raw);
   if (!polInfo) { const p = findPort(raw, importHint ? "abroad" : "India"); if (p) polInfo = { name: p.name, code: p.code }; }
   if (!podInfo) { const p = findPort(raw, importHint ? "India" : "abroad"); if (p) podInfo = { name: p.name, code: p.code }; }
+  // No real port of loading ("NEAREST", "nearest seaport to … Zhongshan", or none):
+  // suggest one from the pickup address, or from the place in the POL line.
+  let polSuggested = '';
+  if (!polInfo?.code) {
+    const hint = suggestPortFromPlace(labelBlock(raw, PICKUP_LABELS)) || suggestPortFromPlace(polText) || suggestPortFromPlace(polInfo?.name);
+    if (hint) {
+      polInfo = { name: hint.port.name, code: hint.port.code };
+      polSuggested = `${hint.place} → ${hint.port.name}`;
+    }
+  }
   const inIndia = (info) => info && (PORT_MAP.find(p => p.code && p.code === info.code)?.country === "India" || /^IN[A-Z]{3}$/.test(info.code || ""));
   const direction = polInfo && podInfo
     ? (inIndia(podInfo) && !inIndia(polInfo) ? "Import" : inIndia(polInfo) && !inIndia(podInfo) ? "Export" : "")
@@ -711,7 +800,7 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   const volume = raw.match(/^[\s>*•-]*(?:total\s+)?(?:cbm|volume|vol\.?|measurement)\s*(?:\(\s*cbm\s*\))?\s*[:\-–]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/im);
   const inlineVolume = raw.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:cbm|m3|cubic\s*met(?:er|re)s?)\b/i);
   const groupCbm = groups.length > 1 && groups.every(g => g.cbm) ? Math.round(groups.reduce((s, g) => s + g.cbm, 0) * 1000) / 1000 : 0;
-  const volumeCbm = volume ? parseFloat(volume[1].replace(/,/g, ''))
+  let volumeCbm = volume ? parseFloat(volume[1].replace(/,/g, ''))
     : totals.cbm || groupCbm || (inlineVolume ? parseFloat(inlineVolume[1].replace(/,/g, '')) : 0);
 
   // A volume in CBM with no container named means the cargo goes LCL.
@@ -765,7 +854,19 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
   } else if (totals.count && !packages) {
     packages = `${totals.count} ${totals.kind}`;
   }
-  const pickupAddress = labelBlock(raw, ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From']);
+  // No CBM in the email: work it out from the dimensions (× number of packages).
+  let volumeCbmCalculated = false;
+  if (!(volumeCbm > 0)) {
+    const calc = cbmFromDimensions(dimensions, packages);
+    if (calc > 0) {
+      volumeCbm = calc;
+      volumeCbmCalculated = true;
+      if (!containerType) { routingMode = 'Ocean LCL'; containerType = 'LCL'; }
+    }
+  }
+  const pickupAddress = labelBlock(raw, PICKUP_LABELS);
+  // No terms in the email: a pickup address means ex-works, otherwise FOB.
+  const incotermsAssumed = incoterms ? '' : pickupAddress ? 'EXW' : 'FOB';
   const customerAddress = customerAddressFrom(raw);
 
   const freeDays = raw.match(/(\d{1,3})\s*days?\s*(?:of\s*)?(?:free|combined|detention|demurrage|det\b|dem\b)|free\s*(?:time|days)[^0-9\n]{0,25}(\d{1,3})/i);
@@ -780,6 +881,7 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     gstin: gst ? gst[1].toUpperCase() : '',
     pol: polInfo?.name || '',
     polCode: polInfo?.code || '',
+    polSuggested,
     pod: podInfo?.name || '',
     podCode: podInfo?.code || '',
     direction,
@@ -794,7 +896,9 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     commodity: commodityClean,
     grossWeightKg,
     volumeCbm,
-    incoterms,
+    volumeCbmCalculated,
+    incoterms: incoterms || incotermsAssumed,
+    incotermsAssumed: Boolean(incotermsAssumed),
     cargoReadyDate: ready,
     freeDaysRequested: freeDays ? `${freeDays[1] || freeDays[2]} days` : '',
     specialRequirements: [

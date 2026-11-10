@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { readEmailWithRules } from '../utils/ruleReader';
+import { cbmFromDimensions, portChoices, portCodeFor } from '../utils/emailParser';
 import { findPlaceholders } from '../utils/replyDraft';
 import { suggestSalesMember } from '../utils/salesTeam';
 import SalesSelect, { newSalesMember } from './SalesSelect';
@@ -488,13 +489,46 @@ export default function EmailIntakeModal({
                     <Field label="Customer email"><input value={draft.contactEmail || ''} onChange={set('contactEmail')} className="scm-input w-full font-mono" /></Field>
                     <Field label="Phone"><input value={draft.contactPhone || ''} onChange={set('contactPhone')} className="scm-input w-full font-mono" /></Field>
                     <Field label="GSTIN"><input value={draft.gstin || ''} onChange={set('gstin')} className="scm-input w-full font-mono" /></Field>
-                    <Field label="Incoterms"><input value={draft.incoterms || ''} onChange={set('incoterms')} className="scm-input w-full" /></Field>
-                    <Field label="Port of loading" missing={missing.has('origin port') || !draft.pol}><input value={draft.pol || ''} onChange={set('pol')} className="scm-input w-full" /></Field>
-                    <Field label="Port of discharge" missing={missing.has('destination port') || !draft.pod}><input value={draft.pod || ''} onChange={set('pod')} className="scm-input w-full" /></Field>
+                    <Field label="Incoterms">
+                      <input value={draft.incoterms || ''} onChange={set('incoterms')} className="scm-input w-full" />
+                      {result?.shipment?.incotermsAssumed && draft.incoterms === result.shipment.incoterms && (
+                        <span className="text-[12px] text-amber-300 font-bold block mt-0.5">
+                          Assumed {draft.incoterms}: {draft.incoterms === 'EXW' ? 'pickup address given' : 'no pickup address'}, no terms in the email
+                        </span>
+                      )}
+                    </Field>
+                    <Field label="Port of loading" missing={missing.has('origin port') || !draft.pol}>
+                      <input value={draft.pol || ''} list="port-choices" onChange={(e) => setDraft(d => ({ ...d, pol: e.target.value, polCode: portCodeFor(e.target.value), polSuggested: '' }))} className="scm-input w-full" />
+                      {draft.polSuggested && (
+                        <span className="text-[12px] text-amber-300 font-bold block mt-0.5">Suggested from the pickup place ({draft.polSuggested}). Check before quoting.</span>
+                      )}
+                    </Field>
+                    <Field label="Port of discharge" missing={missing.has('destination port') || !draft.pod}>
+                      <input value={draft.pod || ''} list="port-choices" onChange={(e) => setDraft(d => ({ ...d, pod: e.target.value, podCode: portCodeFor(e.target.value) }))} className="scm-input w-full" />
+                    </Field>
+                    <datalist id="port-choices">{portChoices().map(p => <option key={p} value={p} />)}</datalist>
                     <Field label="Container / equipment" missing={missing.has('container type') || !draft.containerType}><input value={draft.containerType || ''} onChange={set('containerType')} className="scm-input w-full" /></Field>
                     <Field label="Commodity" missing={missing.has('commodity') || !draft.commodity}><input value={draft.commodity || ''} onChange={set('commodity')} className="scm-input w-full" /></Field>
                     <Field label="Gross weight (kg)" missing={missing.has('gross weight') || !(Number(draft.grossWeightKg) > 0)}><input type="number" min="0" value={draft.grossWeightKg || ''} onChange={set('grossWeightKg')} className="scm-input w-full font-mono font-bold" /></Field>
-                    <Field label="Volume (CBM)"><input type="number" min="0" step="0.01" value={draft.volumeCbm || ''} onChange={set('volumeCbm')} className="scm-input w-full font-mono" /></Field>
+                    <Field label="Total CBM" missing={!(Number(draft.volumeCbm) > 0)}>
+                      <input type="number" min="0" step="0.001" value={draft.volumeCbm || ''} onChange={set('volumeCbm')} className="scm-input w-full font-mono font-bold" />
+                      {(() => {
+                        const calc = cbmFromDimensions(draft.dimensions, draft.packages);
+                        const shown = Number(draft.volumeCbm) || 0;
+                        if (result?.shipment?.volumeCbmCalculated && shown === calc && calc > 0) {
+                          return <span className="text-[12px] text-amber-300 font-bold block mt-0.5">Calculated from dimensions (not stated in the email)</span>;
+                        }
+                        if (calc > 0 && Math.abs(calc - shown) > 0.001) {
+                          return (
+                            <button type="button" onClick={() => setDraft(d => ({ ...d, volumeCbm: calc }))} className="text-[12px] text-[#FFA08C] hover:text-white font-bold block mt-0.5 underline">
+                              {shown > 0 ? `Dimensions give ${calc} CBM. Use that?` : `Calculate from dimensions: ${calc} CBM`}
+                            </button>
+                          );
+                        }
+                        if (!(shown > 0)) return <span className="text-[12px] text-amber-300 font-bold block mt-0.5">Not in the email: enter it, or add dimensions to calculate it</span>;
+                        return null;
+                      })()}
+                    </Field>
                     <Field label="Import / export">
                       <select value={draft.direction || ''} onChange={set('direction')} className="scm-select w-full">
                         <option value="">Not sure</option>

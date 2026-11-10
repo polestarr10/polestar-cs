@@ -21,6 +21,7 @@ import TeamReport from './components/TeamReport';
 import FollowUpModal from './components/FollowUpModal';
 import SignatureManager from './components/SignatureManager';
 import SalesTeamManager from './components/SalesTeamManager';
+import DestTariffManager from './components/DestTariffManager';
 import { salesOptions, salesKey } from './utils/salesTeam';
 import useFollowUpAlerts from './hooks/useFollowUpAlerts';
 import { isAwaitingReply } from './hooks/useReplyReminders';
@@ -40,7 +41,13 @@ import { CheckCircle2, AlertCircle, CloudOff, RefreshCw } from 'lucide-react';
 
 const STORAGE_KEY = 'polestar_cs_inquiries_live_clean_v1';
 
-export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures, onSaveSalesTeam }) {
+export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures, onSaveSalesTeam, onSaveDestTariff, onSaveOriginRates }) {
+  const [tariffOpen, setTariffOpen] = useState(false);
+  const saveTariff = async (tariff) => {
+    const err = await onSaveDestTariff(tariff);
+    if (!err) showToast('Rates saved: new LCL quotes will use them', 'success');
+    return err;
+  };
   const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [salesTeamOpen, setSalesTeamOpen] = useState(false);
   const [salesFilter, setSalesFilter] = useState('ALL');
@@ -452,6 +459,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onEditProfile={onEditProfile}
         onManageSignatures={onSaveSignatures ? () => setSignaturesOpen(true) : null}
         onManageSalesTeam={onSaveSalesTeam ? () => setSalesTeamOpen(true) : null}
+        onManageTariff={onSaveDestTariff ? () => setTariffOpen(true) : null}
       />
 
       <div className="flex-1 flex min-h-0">
@@ -596,6 +604,9 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         currentUser={currentUser}
       />
 
+      <DestTariffManager isOpen={tariffOpen} onClose={() => setTariffOpen(false)} currentUser={currentUser} onSave={saveTariff}
+        onSaveOrigin={onSaveOriginRates} />
+
       <SalesTeamManager
         isOpen={salesTeamOpen}
         onClose={() => setSalesTeamOpen(false)}
@@ -620,6 +631,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
 
       <ReplyComposerModal
         onSaveSignatures={onSaveSignatures}
+        onSaveDestTariff={onSaveDestTariff ? saveTariff : null}
         isOpen={quickQuoteModalOpen}
         onClose={() => setQuickQuoteModalOpen(false)}
         inquiry={quoteInquiryTarget}

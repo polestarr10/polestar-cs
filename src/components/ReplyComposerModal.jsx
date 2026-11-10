@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { copyQuote } from '../utils/richCopy';
 import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2, Lock, Plus, Trash2, PenLine } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -10,6 +11,9 @@ import {
   findPlaceholders,
   defaultCharges,
   defaultDestCharges,
+  newDestCharge,
+  isExWorks,
+  DOC_UNITS,
   newCharge,
   chargeableWM,
 } from '../utils/replyDraft';
@@ -26,6 +30,7 @@ function fclUnit(containerType) {
   return "/ 40'HC";
 }
 import { quoteRound } from '../utils/followUps';
+import { cbmFromDimensions, portChoices, portCodeFor } from '../utils/emailParser';
 
 const CHANNEL_LABELS = { mailto: 'email app', gmail: 'Gmail', outlook: 'Outlook', manual: 'reply in mail client' };
 
@@ -40,7 +45,8 @@ function Field({ label, missing, children, className = '' }) {
   );
 }
 
-export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendReply, currentUser, onSaveSignatures }) {
+export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendReply, currentUser, onSaveSignatures, onSaveDestTariff }) {
+  const [tariffSaved, setTariffSaved] = useState(false);
   const [f, setF] = useState(null);
   const [managingSignatures, setManagingSignatures] = useState(false);
   const [subjectOverride, setSubjectOverride] = useState(null);
@@ -83,8 +89,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
     ...prev,
     format,
     rateUnit: format === 'LCL' ? '/ W/M' : fclUnit(prev.containerType),
-    charges: defaultCharges(format, { ...inquiry, quotedCurrency: prev.currency }),
-    destCharges: defaultDestCharges(format),
+    charges: defaultCharges(format, { ...inquiry, quotedCurrency: prev.currency }, currentUser),
+    destCharges: defaultDestCharges(format, currentUser),
     freeDays: format === 'LCL' ? '' : (prev.freeDays || '14 days combined demurrage/detention'),
   }));
   const setCharge = (id, key) => (e) => setF(prev => ({ ...prev, charges: prev.charges.map(c => (c.id === id ? { ...c, [key]: e.target.value } : c)) }));
@@ -118,6 +124,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
       quotedCurrency: f.currency,
       quotedAmountTotal: parseFloat(f.rateAmount) || 0,
       quoteValidity: f.validity,
+      buyCharge: (f.buyCharge || '').trim(),
+      sellCharge: (f.sellCharge || '').trim(),
       isQuoted: true,
       hasReplied: true,
       status: revised ? 'NEGOTIATING' : 'QUOTED_REPLIED',
@@ -131,7 +139,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
           timestamp: now.toISOString(),
           action: `${revised ? `Revised quotation sent, round ${round}` : `Quotation reply sent via ${CHANNEL_LABELS[channel]}`} (${f.format} ${rate}${
             f.charges.filter(c => parseFloat(c.amount) > 0).map(c => ` + ${c.name} ${formatRate(c.currency, c.amount, c.unit)}`).join('')}${
-            f.destAgreed ? ' + destination charges as agreed' : f.destCharges.filter(c => parseFloat(c.amount) > 0).map(c => ` + dest. ${c.name} ${formatRate(c.currency, c.amount, c.unit)}`).join('')})`,
+            f.destAgreed ? ' + destination charges as agreed' : f.destCharges.filter(c => c.name?.trim() && c.value?.trim()).map(c => ` + dest. ${c.name.trim()} ${c.value.trim()}`).join('')}${isExWorks(f) && f.buyCharge ? ` [internal: buy ${f.buyCharge.trim()}${f.sellCharge ? `, sell ${f.sellCharge.trim()}` : ''}]` : ''})`,
           by: currentUser?.name || 'CS Desk',
         },
       ],
@@ -148,7 +156,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
   const handleCopy = () => {
     if (!canSend) return;
     // Body only: the rep pastes it into a Reply on the customer's original email.
-    navigator.clipboard.writeText(body);
+    copyQuote(body);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
@@ -188,11 +196,12 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                   <input type="email" value={f.contactEmail} onChange={set('contactEmail')} className="scm-input w-full font-mono" placeholder="name@company.com" />
                 </Field>
                 <Field label="Port of loading" missing={missingKeys.has('pol')}>
-                  <input value={f.pol} onChange={set('pol')} className="scm-input w-full" />
+                  <input value={f.pol} list="composer-ports" onChange={(e) => setF(prev => ({ ...prev, pol: e.target.value, polCode: portCodeFor(e.target.value) }))} className="scm-input w-full" />
                 </Field>
                 <Field label="Port of discharge" missing={missingKeys.has('pod')}>
-                  <input value={f.pod} onChange={set('pod')} className="scm-input w-full" />
+                  <input value={f.pod} list="composer-ports" onChange={(e) => setF(prev => ({ ...prev, pod: e.target.value, podCode: portCodeFor(e.target.value) }))} className="scm-input w-full" />
                 </Field>
+                <datalist id="composer-ports">{portChoices().map(p => <option key={p} value={p} />)}</datalist>
                 <Field label="Container / equipment" missing={missingKeys.has('containerType')}>
                   <input value={f.containerType} onChange={set('containerType')} className="scm-input w-full" />
                 </Field>
@@ -202,8 +211,16 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                 <Field label="Gross weight (kg)" missing={missingKeys.has('grossWeightKg')}>
                   <input type="number" min="0" value={f.grossWeightKg} onChange={set('grossWeightKg')} className="scm-input w-full font-mono font-bold" />
                 </Field>
-                <Field label="Volume (CBM)">
-                  <input type="number" min="0" step="0.01" value={f.volumeCbm} onChange={set('volumeCbm')} className="scm-input w-full font-mono" />
+                <Field label="Total CBM" missing={missingKeys.has('volumeCbm')}>
+                  <input type="number" min="0" step="0.001" value={f.volumeCbm} onChange={set('volumeCbm')} className="scm-input w-full font-mono" />
+                  {(() => {
+                    const calc = cbmFromDimensions(f.dimensions, f.packages);
+                    return calc > 0 && Math.abs(calc - (Number(f.volumeCbm) || 0)) > 0.001 ? (
+                      <button type="button" onClick={() => setF(prev => ({ ...prev, volumeCbm: calc }))} className="text-[12px] text-[#FFA08C] hover:text-white font-bold underline mt-0.5">
+                        {Number(f.volumeCbm) > 0 ? `Dimensions give ${calc}. Use that?` : `Calculate from dimensions: ${calc}`}
+                      </button>
+                    ) : null;
+                  })()}
                 </Field>
                 <Field label="Incoterms">
                   <input value={f.incoterms} onChange={set('incoterms')} className="scm-input w-full" />
@@ -248,7 +265,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
 
               <div className="mb-3 rounded-lg border border-[#342b27] overflow-hidden">
                 <div className="px-3 py-1.5 bg-[#110e0d] text-[12.5px] font-extrabold text-[#dcd2cd] flex items-center justify-between">
-                  <span>Other charges <span className="font-normal text-[#8a7d77]">(lines left blank are not put in the reply)</span></span>
+                  <span>Origin charges <span className="font-normal text-[#8a7d77]">(lines left blank are not put in the reply)</span></span>
                   <button type="button" onClick={addCharge} className="text-[#FFA08C] hover:text-white flex items-center gap-1"><Plus size={12} />Add line</button>
                 </div>
                 <div className="divide-y divide-[#1f1916]">
@@ -259,11 +276,14 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                         {CURRENCIES.map(([cur]) => <option key={cur} value={cur}>{cur}</option>)}
                       </select>
                       <input type="number" min="0" value={c.amount} onChange={setCharge(c.id, 'amount')} className="scm-input col-span-2 !py-1 text-[13px] font-mono" placeholder="Amount" />
-                      <input value={c.unit} onChange={setCharge(c.id, 'unit')} className="scm-input col-span-2 !py-1 text-[13px]" placeholder="per …" />
+                      <input value={c.unit} onChange={setCharge(c.id, 'unit')} list="charge-units" className="scm-input col-span-2 !py-1 text-[13px]" placeholder="per …" title="Pick a unit or type your own" />
                       <button type="button" onClick={() => removeCharge(c.id)} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove line"><Trash2 size={13} /></button>
                     </div>
                   ))}
-                  {f.charges.length === 0 && <div className="px-3 py-2 text-[12.5px] text-[#8a7d77]">No other charges.</div>}
+                  {f.charges.length === 0 && <div className="px-3 py-2 text-[12.5px] text-[#8a7d77]">No origin charges.</div>}
+                  <datalist id="charge-units">
+                    {['/ W/M', ...DOC_UNITS, 'per container'].map(u => <option key={u} value={u} />)}
+                  </datalist>
                 </div>
               </div>
 
@@ -288,15 +308,27 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                   <div className="divide-y divide-[#1f1916]">
                     {f.destCharges.map(c => (
                       <div key={c.id} className="grid grid-cols-12 gap-1.5 p-1.5 items-center">
-                        <span className="col-span-5 text-[13px] font-bold text-white pl-1">{c.name}</span>
-                        <select value={c.currency} onChange={setDest(c.id, 'currency')} className="scm-select col-span-2 !py-1 text-[13px]">
-                          {CURRENCIES.map(([cur]) => <option key={cur} value={cur}>{cur}</option>)}
-                        </select>
-                        <input type="number" min="0" value={c.amount} onChange={setDest(c.id, 'amount')} className="scm-input col-span-2 !py-1 text-[13px] font-mono" placeholder="Amount" />
-                        <input value={c.unit} onChange={setDest(c.id, 'unit')} className="scm-input col-span-3 !py-1 text-[13px]" placeholder="per …" />
+                        <input value={c.name} onChange={setDest(c.id, 'name')} className="scm-input col-span-3 !py-1 text-[13px] font-bold" placeholder="Charge" />
+                        <input value={c.value} onChange={setDest(c.id, 'value')} className="scm-input col-span-8 !py-1 text-[13px] font-mono" placeholder="e.g. INR 750/ CBM or Minimum INR 2500/ Shipment" />
+                        <button type="button" onClick={() => setF(prev => ({ ...prev, destCharges: prev.destCharges.filter(x => x.id !== c.id) }))} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove line"><Trash2 size={13} /></button>
                       </div>
                     ))}
-                    <div className="px-3 py-1.5 text-[12px] text-[#8a7d77]">Lines left blank are not put in the reply.</div>
+                    <div className="px-3 py-1.5 text-[12px] text-[#8a7d77] flex items-center justify-between gap-2">
+                      <span>{lcl ? 'Your standard LCL destination rates, filled in. Edit any line for this quote.' : 'Lines left blank are not put in the reply.'}</span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        {lcl && onSaveDestTariff && (
+                          <button type="button" title="Use these lines for all future LCL quotes"
+                            onClick={async () => {
+                              const err = await onSaveDestTariff(f.destCharges.filter(c => c.name.trim()).map(c => [c.name.trim(), c.value.trim()]));
+                              if (!err) { setTariffSaved(true); setTimeout(() => setTariffSaved(false), 2500); }
+                            }}
+                            className="text-emerald-400 hover:text-white font-bold">
+                            {tariffSaved ? 'Saved as standard ✓' : 'Save as my standard rates'}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => setF(prev => ({ ...prev, destCharges: [...prev.destCharges, newDestCharge()] }))} className="text-[#FFA08C] hover:text-white flex items-center gap-1"><Plus size={12} />Add line</button>
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -317,6 +349,22 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
               <Field label="Remarks (optional)" className="mt-3">
                 <textarea value={f.remarks} onChange={set('remarks')} rows={2} className="scm-input w-full" placeholder="Surcharges, routing notes, etc." />
               </Field>
+
+              {isExWorks(f) && (
+                <div className="mt-3 p-3 rounded-lg border-2 border-dashed border-sky-500/50 bg-[rgba(14,165,233,0.06)] space-y-2">
+                  <div className="text-[12.5px] font-extrabold text-sky-300 uppercase tracking-wider">
+                    Internal note (ex-works): not sent to the customer
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Buy charge (our cost)" missing={missingKeys.has('buyCharge')}>
+                      <input value={f.buyCharge} onChange={set('buyCharge')} className="scm-input w-full font-mono" placeholder="e.g. USD 85 per shipment" />
+                    </Field>
+                    <Field label="Sell charge (to customer)">
+                      <input value={f.sellCharge} onChange={set('sellCharge')} className="scm-input w-full font-mono" placeholder="e.g. USD 120 per shipment" />
+                    </Field>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

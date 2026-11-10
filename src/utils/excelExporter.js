@@ -181,6 +181,8 @@ export function exportInquiriesToExcel(inquiries, opts = {}) {
     'Pickup Address': i.pickupAddress || '',
     'Handled By': i.assignedTo || '',
     'Sales Member': i.salesMember || '',
+    'Buy Charge (internal)': i.buyCharge || '',
+    'Sell Charge (internal)': i.sellCharge || '',
     'Replied?': i.hasReplied ? 'Yes' : 'No',
     'Replied At': fmtDateTime(i.repliedAt),
     'Reply Time (min)': typeof i.responseTatMinutes === 'number' ? i.responseTatMinutes : '',

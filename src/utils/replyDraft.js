@@ -28,13 +28,25 @@ export function findPlaceholders(text) {
   return [...new Set((text || '').match(PLACEHOLDER_RE) || [])];
 }
 
+export function isExWorks(draft) {
+  return /^EXW|ex[\s-]?works?/i.test((draft?.incoterms || '').trim());
+}
+
 export function getMissingFields(draft) {
-  return REQUIRED_REPLY_FIELDS.filter(({ key }) => {
+  const missing = REQUIRED_REPLY_FIELDS.filter(({ key }) => {
     const v = draft[key];
     if (key === 'grossWeightKg' || key === 'rateAmount') return !(Number(v) > 0);
     if (key === 'contactEmail') return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail(v));
     return v === undefined || v === null || String(v).trim() === '';
   });
+  if (draft.format === 'LCL' && !(Number(draft.volumeCbm) > 0)) {
+    missing.push({ key: 'volumeCbm', label: 'Total CBM' });
+  }
+  // Ex-works: the buy charge must be noted (internal only, never in the quote).
+  if (isExWorks(draft) && 'buyCharge' in draft && !String(draft.buyCharge || '').trim()) {
+    missing.push({ key: 'buyCharge', label: 'Buy charge (internal note, ex-works)' });
+  }
+  return missing;
 }
 
 const CURRENCY_SYMBOL = { USD: '$', EUR: '€', INR: '₹' };
@@ -62,15 +74,41 @@ export function newCharge(name = '', unit = '', currency = 'USD') {
 
 // Starting charge lines for each format. Lines left without an amount aren't
 // put in the reply, so unused ones can simply be left blank.
-export function defaultCharges(format, inquiry) {
+// Standard LCL origin charges by port of loading: CFS per W/M and documentation.
+// Reps can change these and add ports (name menu -> My rates).
+export const ORIGIN_RATES = [
+  { port: 'Shanghai', code: 'CNSHA', currency: 'USD', cfs: '17', doc: '95', docUnit: 'per BL' },
+  { port: 'Shenzhen', code: 'CNSZX', currency: 'USD', cfs: '17', doc: '120', docUnit: 'per BL' },
+];
+export const DOC_UNITS = ['per BL', 'per set', 'per doc', 'per shipment'];
+
+export function originRatesOf(user) {
+  const saved = user?.originRates;
+  return Array.isArray(saved) && saved.length ? saved : ORIGIN_RATES;
+}
+
+// The rates for an inquiry's port of loading (by code, else by name).
+export function originRateFor(inquiry, user) {
+  const code = (inquiry?.polCode || '').toUpperCase();
+  const name = (inquiry?.pol || '').toLowerCase();
+  return originRatesOf(user).find(r => (code && r.code && r.code.toUpperCase() === code)
+    || (r.port && name.includes(r.port.toLowerCase()))) || null;
+}
+
+export function defaultCharges(format, inquiry, user) {
   const cur = inquiry?.quotedCurrency || 'USD';
   const pickup = /^EXW/i.test(inquiry?.incoterms || '') || Boolean(inquiry?.pickupAddress);
   const isImport = inquiry?.direction === 'Import';
   if (format === 'LCL') {
+    // Two origin charges: CFS per W/M, and documentation per BL / set / doc / shipment.
+    const rate = originRateFor(inquiry, user);
+    const cfs = newCharge('Origin CFS', '/ W/M', rate?.currency || cur);
+    const doc = newCharge('Documentation', rate?.docUnit || 'per BL', rate?.currency || cur);
+    if (rate) { cfs.amount = rate.cfs || ''; doc.amount = rate.doc || ''; }
     return [
       pickup && newCharge('Pickup / origin trucking', 'per shipment', cur),
-      newCharge('Origin charges', '/ W/M', cur),
-      !isImport && newCharge('Origin CFS charges', '/ W/M', 'INR'),
+      cfs,
+      doc,
     ].filter(Boolean);
   }
   return [
@@ -80,16 +118,33 @@ export function defaultCharges(format, inquiry) {
   ].filter(Boolean);
 }
 
-// Destination charges, itemised: THC, CFS, DO, weighment, ODC (in INR by default).
-export function defaultDestCharges(format) {
-  const per = format === 'LCL' ? '/ W/M' : 'per container';
-  return [
-    newCharge('THC', per, 'INR'),
-    newCharge('CFS', per, 'INR'),
-    newCharge('DO', 'per BL', 'INR'),
-    newCharge('Weighment', 'per shipment', 'INR'),
-    newCharge('ODC', 'per shipment', 'INR'),
-  ];
+// Polestar's standard LCL destination tariff at Nhava Sheva. Each line is free
+// text so rates with alternatives and minimums read exactly as written.
+// To change the standard rates, edit this list.
+export const LCL_DESTINATION_TARIFF = [
+  ['THC', 'INR 1125/ CBM or INR 1350/ Ton (Minimum INR 1350/ Shipment)'],
+  ['DO', 'INR 2000/ Shipment'],
+  ['CFS', 'INR 750/ CBM or Minimum INR 2500/ Shipment'],
+  ['WEIGHMENT', 'INR 500/ Shipment'],
+  ['AOTC', 'INR 750/ Shipment'],
+  ['GST', 'At Actual'],
+];
+
+let destSeq = 0;
+export function newDestCharge(name = '', value = '') {
+  return { id: `d${Date.now().toString(36)}${(destSeq++).toString(36)}`, name, value };
+}
+
+// The rep's own saved rates, else the standard list above.
+export function destTariffOf(user) {
+  const saved = user?.destTariff;
+  return Array.isArray(saved) && saved.length ? saved : LCL_DESTINATION_TARIFF;
+}
+
+// LCL: the standard tariff, filled in. FCL: the usual lines, left blank to fill.
+export function defaultDestCharges(format, user) {
+  if (format === 'LCL') return destTariffOf(user).map(([name, value]) => newDestCharge(name, value));
+  return ['THC', 'CFS', 'DO', 'Weighment', 'ODC'].map(name => newDestCharge(name, ''));
 }
 
 // The customer's email said destination charges are already agreed.
@@ -116,10 +171,12 @@ export function initialDraftFields(inquiry, currentUser) {
   const format = quoteFormat(inquiry);
   return {
     format,
-    charges: defaultCharges(format, inquiry),
+    charges: defaultCharges(format, inquiry, currentUser),
     destAgreed: destChargesAgreed(inquiry),
-    destCharges: defaultDestCharges(format),
+    destCharges: defaultDestCharges(format, currentUser),
     signatureId: pickSignature(currentUser).id,
+    buyCharge: inquiry.buyCharge || '',
+    sellCharge: inquiry.sellCharge || '',
     contactPerson: inquiry.contactPerson || '',
     contactEmail: cleanEmail(inquiry.contactEmail),
     pol: inquiry.pol || '',
@@ -223,10 +280,10 @@ export function buildReplyBody(inquiry, f, currentUser) {
   ].filter(Boolean);
 
   // Destination charges: one line when agreed, otherwise the filled-in items.
-  const destItems = (f.destCharges || []).filter(c => parseFloat(c.amount) > 0);
+  const destItems = (f.destCharges || []).filter(c => c.name?.trim() && c.value?.trim());
   const destination = f.destAgreed
     ? ['', line('Destination charges', 'As agreed')]
-    : destItems.length ? ['', 'DESTINATION CHARGES (at POD)', ...destItems.map(chargeLine)] : [];
+    : destItems.length ? ['', 'DESTINATION CHARGES (at POD)', ...destItems.map(c => line(c.name.trim(), c.value.trim()))] : [];
 
   const signature = pickSignature(currentUser, f.signatureId).text.split('\n');
   return [

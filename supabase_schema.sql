@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     customer_address TEXT,
     sales_member TEXT,
     sales_member_id TEXT,
+    buy_charge TEXT,
+    sell_charge TEXT,
     cargo_ready_date TEXT,
     special_requirements TEXT,
     urgency TEXT DEFAULT 'NORMAL',

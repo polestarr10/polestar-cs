@@ -169,6 +169,7 @@ export function resultToInquiry(result, { existing, currentUser, rawText, screen
     hsnCode: s.hsnCode || '',
     dimensions: s.dimensions || '',
     pickupAddress: s.pickupAddress || '',
+    polSuggested: s.polSuggested || '',
     customerAddress: s.customerAddress || '',
     commodity: s.commodity,
     grossWeightKg: Number(s.grossWeightKg) || 0,
