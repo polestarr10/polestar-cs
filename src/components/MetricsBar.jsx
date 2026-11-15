@@ -18,29 +18,29 @@ export default function MetricsBar({
   const pendingCount = inquiries.filter(i => i.status === 'INQUIRY_RECEIVED' || i.status === 'UNDER_REVIEW').length;
 
   return (
-    <div className="p-2 px-3 rounded-xl bg-[#0d0b0a] border border-[#342b27] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-[13.5px] mt-1">
+    <div className="p-2 px-3 rounded-xl bg-surface border border-line flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-[13.5px] mt-1">
       
       {/* Left: Simple KPI Summary Badges */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#120f0e] border border-[#221b18] text-[13.5px]">
-          <span className="text-[#b3a59e] font-semibold">TOTAL:</span>
-          <span className="text-white font-extrabold font-mono">{total}</span>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-panel border border-line-soft-2 text-[13.5px]">
+          <span className="text-ink-3 font-semibold">TOTAL:</span>
+          <span className="text-ink font-extrabold font-mono">{total}</span>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#120f0e] border border-[#221b18] text-[13.5px]">
-          <span className="text-[#b3a59e] font-semibold">QUOTED:</span>
-          <span className="text-emerald-400 font-extrabold font-mono">{quotedCount}</span>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-panel border border-line-soft-2 text-[13.5px]">
+          <span className="text-ink-3 font-semibold">QUOTED:</span>
+          <span className="text-good font-extrabold font-mono">{quotedCount}</span>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#120f0e] border border-[#221b18] text-[13.5px]">
-          <span className="text-[#b3a59e] font-semibold">PENDING:</span>
-          <span className="text-[#FFA08C] font-extrabold font-mono">{pendingCount}</span>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-panel border border-line-soft-2 text-[13.5px]">
+          <span className="text-ink-3 font-semibold">PENDING:</span>
+          <span className="text-accent-ink font-extrabold font-mono">{pendingCount}</span>
         </div>
 
         {total > 0 && (
           <button
             onClick={onClearAll}
-            className="p-1 rounded-full text-[#b3a59e] hover:text-rose-400 hover:bg-[#181412] transition-colors ml-1"
+            className="p-1 rounded-full text-ink-3 hover:text-rose hover:bg-raised transition-colors ml-1"
             title="Clear all rows"
           >
             <Trash2 size={13} />
@@ -55,7 +55,7 @@ export default function MetricsBar({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="scm-select text-[13.5px] py-1 px-3 font-bold text-[#FFA08C] rounded-full"
+          className="scm-select text-[13.5px] py-1 px-3 font-bold text-accent-ink rounded-full"
         >
           <option value="ALL">All Inquiries ({total})</option>
           <option value="INQUIRY_RECEIVED">Pending CS Action ({pendingCount})</option>
@@ -80,7 +80,7 @@ export default function MetricsBar({
 
         {/* Search */}
         <div className="relative min-w-[200px]">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
             type="text"
             placeholder="Search inquiries..."
@@ -91,7 +91,7 @@ export default function MetricsBar({
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[12.5px] text-[#b3a59e] hover:text-white"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[12.5px] text-ink-3 hover:text-ink"
             >
               ✕
             </button>
@@ -101,7 +101,7 @@ export default function MetricsBar({
         {(searchTerm || statusFilter !== 'ALL' || salesFilter !== 'ALL') && (
           <button
             onClick={onResetFilters}
-            className="text-[13px] text-[#FFA08C] hover:text-white underline font-bold px-1"
+            className="text-[13px] text-accent-ink hover:text-ink underline font-bold px-1"
           >
             Reset
           </button>

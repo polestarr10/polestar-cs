@@ -9,8 +9,8 @@ function initials(name) {
 }
 
 // id scopes this rep's data: their database rows and this device's cache.
-function toUser({ id, name, role, email, signatures, salesTeam, destTariff, originRates }) {
-  return { id, name, role, email, signatures: signatures || [], salesTeam: salesTeam || [], destTariff: destTariff || null, originRates: originRates || null, avatar: initials(name) };
+function toUser({ id, name, role, email, signatures, salesTeam, agents, destTariff, originRates }) {
+  return { id, name, role, email, signatures: signatures || [], salesTeam: salesTeam || [], agents: agents || [], destTariff: destTariff || null, originRates: originRates || null, avatar: initials(name) };
 }
 
 function loadLocalProfile() {
@@ -24,13 +24,13 @@ function loadLocalProfile() {
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#080605]">
-      <div className="w-full max-w-md rounded-2xl border border-[#FFA08C]/50 bg-[#0d0b0a] shadow-[0_0_30px_rgba(255,160,140,0.2)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#342b27] bg-[#110e0d] flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#FFA08C] flex items-center justify-center"><Sparkles size={17} className="text-[#0d0b0a]" /></div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-page">
+      <div className="w-full max-w-md rounded-2xl border border-accent/50 bg-surface shadow-[0_0_30px_rgba(255,160,140,0.2)] overflow-hidden">
+        <div className="px-6 py-4 border-b border-line bg-panel-2 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center"><Sparkles size={17} className="text-on-accent" /></div>
           <div>
-            <div className="font-extrabold text-[16px] tracking-wider text-white">POLESTAR <span className="text-[#FFA08C]">SHIPPING</span></div>
-            <div className="text-[12px] text-[#dcd2cd] font-semibold tracking-wider">CS INQUIRY & OPERATIONS DESK</div>
+            <div className="font-extrabold text-[16px] tracking-wider text-ink">POLESTAR <span className="text-accent-ink">SHIPPING</span></div>
+            <div className="text-[12px] text-ink-2 font-semibold tracking-wider">CS INQUIRY & OPERATIONS DESK</div>
           </div>
         </div>
         <div className="p-6 space-y-4">{children}</div>
@@ -42,7 +42,7 @@ function Shell({ children }) {
 function Notice({ type, children }) {
   const ok = type === 'ok';
   return (
-    <div className={`p-3 rounded-xl text-sm font-bold flex items-start gap-2 border ${ok ? 'border-emerald-500/50 bg-[rgba(16,185,129,0.08)] text-emerald-300' : 'border-[#f87171]/60 bg-[rgba(248,113,113,0.1)] text-[#fca5a5]'}`}>
+    <div className={`p-3 rounded-xl text-sm font-bold flex items-start gap-2 border ${ok ? 'border-emerald-500/50 bg-[rgba(16,185,129,0.08)] text-good-2' : 'border-danger/60 bg-[rgba(248,113,113,0.1)] text-danger-ink-2'}`}>
       {ok ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
       <span>{children}</span>
     </div>
@@ -66,26 +66,26 @@ function SignIn() {
 
   return (
     <Shell>
-      <div className="text-[17px] font-extrabold text-white">Sign in</div>
+      <div className="text-[17px] font-extrabold text-ink">Sign in</div>
       {message && <Notice type={message.type}>{message.text}</Notice>}
       <form onSubmit={signInWithPassword} className="space-y-3">
         <label className="block">
-          <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Work email</span>
+          <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">Work email</span>
           <div className="relative">
-            <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
+            <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className="scm-input scm-input-icon w-full" autoComplete="email" />
           </div>
         </label>
         <label className="block">
-          <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Password</span>
+          <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">Password</span>
           <div className="relative">
-            <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
+            <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="scm-input scm-input-icon w-full" autoComplete="current-password" />
           </div>
         </label>
         <button type="submit" disabled={busy} className="btn-coral w-full justify-center disabled:opacity-50">{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
-      <div className="text-[12.5px] text-[#b3a59e]">There is no sign-up here: accounts are created by your admin. If you forgot your password, ask your admin to reset it.</div>
+      <div className="text-[12.5px] text-ink-3">There is no sign-up here: accounts are created by your admin. If you forgot your password, ask your admin to reset it.</div>
     </Shell>
   );
 }
@@ -108,17 +108,17 @@ function ProfileSetup({ initial, onSave, note }) {
 
   return (
     <Shell>
-      <div className="text-[17px] font-extrabold text-white">{initial?.name ? 'Edit your details' : 'Welcome! Tell us who you are'}</div>
-      <div className="text-sm text-[#dcd2cd]">Your name goes on replies, the nomination sheet and reports.</div>
+      <div className="text-[17px] font-extrabold text-ink">{initial?.name ? 'Edit your details' : 'Welcome! Tell us who you are'}</div>
+      <div className="text-sm text-ink-2">Your name goes on replies, the nomination sheet and reports.</div>
       {note && <Notice type="error">{note}</Notice>}
       {error && <Notice type="error">{error}</Notice>}
       <form onSubmit={submit} className="space-y-3">
         <label className="block">
-          <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Full name</span>
+          <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">Full name</span>
           <input required autoFocus value={name} onChange={(e) => setName(e.target.value)} className="scm-input w-full" placeholder="e.g. Aarti Sharma" />
         </label>
         <label className="block">
-          <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Role</span>
+          <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">Role</span>
           <input value={role} onChange={(e) => setRole(e.target.value)} className="scm-input w-full" placeholder="e.g. Senior CS Executive" />
         </label>
         <button type="submit" disabled={busy || !name.trim()} className="btn-coral w-full justify-center disabled:opacity-50">{busy ? 'Saving…' : 'Continue'}</button>
@@ -162,18 +162,19 @@ export default function AuthGate({ children }) {
       onSignOut: null,
       onSaveSignatures: (signatures) => saveLocal({ signatures }),
       onSaveSalesTeam: (salesTeam) => saveLocal({ salesTeam }),
+      onSaveAgents: (agents) => saveLocal({ agents }),
       onSaveDestTariff: (destTariff) => saveLocal({ destTariff }),
       onSaveOriginRates: (originRates) => saveLocal({ originRates }),
     });
   }
 
   if (session === undefined) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#080605] text-[#dcd2cd] font-bold">Loading…</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-page text-ink-2 font-bold">Loading…</div>;
   }
   if (!session) return <SignIn />;
 
   const meta = session.user.user_metadata || {};
-  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email, signatures: meta.signatures || [], salesTeam: meta.sales_team || [], destTariff: meta.dest_tariff || null, originRates: meta.origin_rates || null };
+  const profile = { id: session.user.id, name: meta.full_name || '', role: meta.role || '', email: session.user.email, signatures: meta.signatures || [], salesTeam: meta.sales_team || [], agents: meta.agents || [], destTariff: meta.dest_tariff || null, originRates: meta.origin_rates || null };
   const saveRemote = async (p) => {
     const { data, error } = await supabase.auth.updateUser({ data: { full_name: p.name, role: p.role } });
     if (error) return error.message;
@@ -209,6 +210,12 @@ export default function AuthGate({ children }) {
     },
     onSaveSalesTeam: async (team) => {
       const { data, error } = await supabase.auth.updateUser({ data: { sales_team: team } });
+      if (error) return error.message;
+      setSession(s => ({ ...s, user: data.user }));
+      return null;
+    },
+    onSaveAgents: async (agents) => {
+      const { data, error } = await supabase.auth.updateUser({ data: { agents } });
       if (error) return error.message;
       setSession(s => ({ ...s, user: data.user }));
       return null;

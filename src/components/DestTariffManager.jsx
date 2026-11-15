@@ -33,27 +33,27 @@ export default function DestTariffManager({ isOpen, onClose, currentUser, onSave
     else onClose();
   };
 
-  const head = 'text-[12px] font-bold text-[#8a7d77] uppercase';
+  const head = 'text-[12px] font-bold text-ink-4 uppercase';
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-4xl max-h-[92vh] flex flex-col bg-[#0d0b0a] border border-[#FFA08C]/50 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
-          <span className="text-[15px] font-extrabold text-white uppercase tracking-wider">My rates (LCL)</span>
-          <button onClick={onClose} className="p-1 rounded-full bg-[#181412] text-slate-400 hover:text-white"><X size={18} /></button>
+      <div className="w-full max-w-4xl max-h-[92vh] flex flex-col bg-surface border border-accent/50 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
+          <span className="text-[15px] font-extrabold text-ink uppercase tracking-wider">My rates (LCL)</span>
+          <button onClick={onClose} className="p-1 rounded-full bg-raised text-ink-2 hover:text-ink"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-5 overflow-y-auto">
-          <div className="text-sm text-[#dcd2cd]">
+          <div className="text-sm text-ink-2">
             These fill the charges on every new LCL quote. You can still change them on a single quote. Saved to your login.
           </div>
           {error && (
-            <div className="p-2.5 rounded-lg text-sm font-bold flex items-center gap-2 border border-[#f87171]/60 bg-[rgba(248,113,113,0.1)] text-[#fca5a5]">
+            <div className="p-2.5 rounded-lg text-sm font-bold flex items-center gap-2 border border-danger/60 bg-[rgba(248,113,113,0.1)] text-danger-ink-2">
               <AlertTriangle size={15} /> Couldn't save: {error}
             </div>
           )}
 
           {onSaveOrigin && (
             <section className="space-y-2">
-              <div className="text-[14px] font-extrabold text-[#FFA08C] uppercase tracking-wider">Origin charges, by port of loading</div>
+              <div className="text-[14px] font-extrabold text-accent-ink uppercase tracking-wider">Origin charges, by port of loading</div>
               <div className="grid grid-cols-12 gap-2">
                 <span className={`${head} col-span-3`}>Port</span>
                 <span className={`${head} col-span-2`}>Code</span>
@@ -72,7 +72,7 @@ export default function DestTariffManager({ isOpen, onClose, currentUser, onSave
                   <input type="number" min="0" value={r.cfs || ''} onChange={updOrigin(r.key, 'cfs')} className="scm-input col-span-2 font-mono" placeholder="17" />
                   <input type="number" min="0" value={r.doc || ''} onChange={updOrigin(r.key, 'doc')} className="scm-input col-span-1 font-mono !px-1.5" placeholder="95" />
                   <input value={r.docUnit || ''} onChange={updOrigin(r.key, 'docUnit')} list="rate-doc-units" className="scm-input col-span-2" placeholder="per BL" />
-                  <button onClick={() => setOrigin(x => x.filter(y => y.key !== r.key))} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove port"><Trash2 size={15} /></button>
+                  <button onClick={() => setOrigin(x => x.filter(y => y.key !== r.key))} className="col-span-1 flex justify-center text-ink-4b hover:text-danger-ink" title="Remove port"><Trash2 size={15} /></button>
                 </div>
               ))}
               <datalist id="rate-doc-units">{DOC_UNITS.map(u => <option key={u} value={u} />)}</datalist>
@@ -80,17 +80,17 @@ export default function DestTariffManager({ isOpen, onClose, currentUser, onSave
                 <button onClick={() => setOrigin(x => [...x, { key: `o${Date.now()}`, port: '', code: '', currency: 'USD', cfs: '', doc: '', docUnit: 'per BL' }])} className="btn-dark"><Plus size={14} /><span>Add port</span></button>
                 <button onClick={() => setOrigin(ORIGIN_RATES.map((r, i) => ({ key: `o${i}`, ...r })))} className="btn-dark"><RotateCcw size={14} /><span>Reset origin rates</span></button>
               </div>
-              <div className="text-[12px] text-[#8a7d77]">Ports not listed get empty CFS and documentation lines to fill on the quote.</div>
+              <div className="text-[12px] text-ink-4">Ports not listed get empty CFS and documentation lines to fill on the quote.</div>
             </section>
           )}
 
           <section className="space-y-2">
-            <div className="text-[14px] font-extrabold text-[#FFA08C] uppercase tracking-wider">Destination charges</div>
+            <div className="text-[14px] font-extrabold text-accent-ink uppercase tracking-wider">Destination charges</div>
             {dest.map(r => (
               <div key={r.key} className="grid grid-cols-12 gap-2 items-center">
                 <input value={r.name} onChange={updDest(r.key, 'name')} className="scm-input col-span-3 font-bold" placeholder="Charge" />
                 <input value={r.value} onChange={updDest(r.key, 'value')} className="scm-input col-span-8 font-mono text-[13px]" placeholder="e.g. INR 750/ CBM or Minimum INR 2500/ Shipment" />
-                <button onClick={() => setDest(x => x.filter(y => y.key !== r.key))} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove"><Trash2 size={15} /></button>
+                <button onClick={() => setDest(x => x.filter(y => y.key !== r.key))} className="col-span-1 flex justify-center text-ink-4b hover:text-danger-ink" title="Remove"><Trash2 size={15} /></button>
               </div>
             ))}
             <div className="flex flex-wrap gap-2">
@@ -99,7 +99,7 @@ export default function DestTariffManager({ isOpen, onClose, currentUser, onSave
             </div>
           </section>
         </div>
-        <div className="px-5 py-3 border-t border-[#342b27] bg-[#110e0d] flex justify-end gap-2">
+        <div className="px-5 py-3 border-t border-line bg-panel-2 flex justify-end gap-2">
           <button onClick={onClose} className="btn-dark">Cancel</button>
           <button onClick={save} disabled={busy} className="btn-coral disabled:opacity-50"><Save size={14} /><span>{busy ? 'Saving…' : 'Save rates'}</span></button>
         </div>

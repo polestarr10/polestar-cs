@@ -22,6 +22,8 @@ import FollowUpModal from './components/FollowUpModal';
 import SignatureManager from './components/SignatureManager';
 import SalesTeamManager from './components/SalesTeamManager';
 import DestTariffManager from './components/DestTariffManager';
+import AgentRequestModal from './components/AgentRequestModal';
+import AgentsManager from './components/AgentsManager';
 import { salesOptions, salesKey } from './utils/salesTeam';
 import useFollowUpAlerts from './hooks/useFollowUpAlerts';
 import { isAwaitingReply } from './hooks/useReplyReminders';
@@ -41,7 +43,7 @@ import { CheckCircle2, AlertCircle, CloudOff, RefreshCw } from 'lucide-react';
 
 const STORAGE_KEY = 'polestar_cs_inquiries_live_clean_v1';
 
-export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures, onSaveSalesTeam, onSaveDestTariff, onSaveOriginRates }) {
+export default function App({ currentUser, onSignOut, onEditProfile, onSaveSignatures, onSaveSalesTeam, onSaveAgents, onSaveDestTariff, onSaveOriginRates }) {
   const [tariffOpen, setTariffOpen] = useState(false);
   const saveTariff = async (tariff) => {
     const err = await onSaveDestTariff(tariff);
@@ -50,6 +52,8 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
   };
   const [signaturesOpen, setSignaturesOpen] = useState(false);
   const [salesTeamOpen, setSalesTeamOpen] = useState(false);
+  const [agentsOpen, setAgentsOpen] = useState(false);
+  const [agentTarget, setAgentTarget] = useState(null);
   const [salesFilter, setSalesFilter] = useState('ALL');
   const [inquiries, setInquiries] = useState(() => {
     try {
@@ -316,6 +320,13 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
     persist(updatedItem);
   };
 
+  // Ex-works rate request logged. The open composer keeps the rep's edits but
+  // must see the new log, or marking the quote replied would drop it.
+  const handleAgentRequestSent = (updatedItem, message) => {
+    if (quoteInquiryTarget?.id === updatedItem.id) setQuoteInquiryTarget(updatedItem);
+    handleUpdateInquiry(updatedItem, message);
+  };
+
   const handleUpdateStatus = async (id, newStatus) => {
     const item = inquiries.find(i => i.id === id);
     if (!item) return;
@@ -449,7 +460,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#080605] text-[#f5f5f5] antialiased font-sans">
+    <div className="h-screen flex flex-col bg-page text-ink-f5 antialiased font-sans">
       
       {/* Top Header */}
       <Header
@@ -459,6 +470,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onEditProfile={onEditProfile}
         onManageSignatures={onSaveSignatures ? () => setSignaturesOpen(true) : null}
         onManageSalesTeam={onSaveSalesTeam ? () => setSalesTeamOpen(true) : null}
+        onManageAgents={onSaveAgents ? () => setAgentsOpen(true) : null}
         onManageTariff={onSaveDestTariff ? () => setTariffOpen(true) : null}
       />
 
@@ -480,7 +492,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         
         {pendingCount > 0 && (
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)]">
-            <span className="flex items-center gap-2 text-sm font-bold text-amber-300">
+            <span className="flex items-center gap-2 text-sm font-bold text-warn">
               <CloudOff size={16} />
               {pendingCount} change{pendingCount === 1 ? '' : 's'} not saved to the database yet. They're kept on this device and retried every minute.
             </span>
@@ -555,6 +567,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
               onUpdateStatus={handleUpdateStatus}
               onViewDetails={handleViewDetails}
               onQuickQuote={handleOpenQuickQuote}
+              onAskAgent={setAgentTarget}
               onDeleteInquiry={handleDeleteInquiry}
               onOpenIntake={() => setIntakeModalOpen(true)}
               now={now}
@@ -594,6 +607,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onUpdateStatus={handleUpdateStatus}
         onSaveUpdates={handleSaveUpdates}
         onOpenReply={handleOpenQuickQuote}
+        onAskAgent={setAgentTarget}
         salesTeam={currentUser.salesTeam}
       />
 
@@ -636,7 +650,32 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
         onClose={() => setQuickQuoteModalOpen(false)}
         inquiry={quoteInquiryTarget}
         onSendReply={handleSaveQuote}
+        onAskAgent={setAgentTarget}
         currentUser={currentUser}
+      />
+
+      <AgentRequestModal
+        isOpen={Boolean(agentTarget)}
+        onClose={() => setAgentTarget(null)}
+        inquiry={agentTarget}
+        currentUser={currentUser}
+        onMarkSent={handleAgentRequestSent}
+        onSaveAgents={onSaveAgents ? async (agents) => {
+          const err = await onSaveAgents(agents);
+          showToast(err ? `Couldn't save the agent: ${err}` : 'Agent saved', err ? 'error' : 'success');
+          return err;
+        } : null}
+      />
+
+      <AgentsManager
+        isOpen={agentsOpen}
+        onClose={() => setAgentsOpen(false)}
+        currentUser={currentUser}
+        onSave={async (agents) => {
+          const err = await onSaveAgents(agents);
+          if (!err) showToast(`Agents saved (${agents.length})`, 'success');
+          return err;
+        }}
       />
 
       <AddNominationModal
@@ -665,7 +704,7 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
       />
 
       {/* 30-minute unreplied inquiry reminders */}
-      {!quickQuoteModalOpen && !intakeModalOpen && !confirmTarget && !addNominationOpen && !followUpTarget && (
+      {!quickQuoteModalOpen && !intakeModalOpen && !confirmTarget && !addNominationOpen && !followUpTarget && !agentTarget && (
         <ReplyReminderPopup
           inquiries={dueInquiries}
           now={now}
@@ -677,8 +716,8 @@ export default function App({ currentUser, onSignOut, onEditProfile, onSaveSigna
       {/* Toast Notification */}
       {toast && (
         <div className="fixed bottom-4 right-4 z-50 animate-fadeIn">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#120f0e] border border-[#FFA08C] text-[13.5px] font-bold text-white shadow-[0_0_18px_rgba(255,160,140,0.4)]">
-            {toast.type === 'success' ? <CheckCircle2 size={14} className="text-emerald-400" /> : <AlertCircle size={14} className="text-[#FFA08C]" />}
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-panel border border-accent text-[13.5px] font-bold text-ink shadow-[0_0_18px_rgba(255,160,140,0.4)]">
+            {toast.type === 'success' ? <CheckCircle2 size={14} className="text-good" /> : <AlertCircle size={14} className="text-accent-ink" />}
             <span>{toast.message}</span>
           </div>
         </div>

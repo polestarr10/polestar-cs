@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { copyQuote } from '../utils/richCopy';
-import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2, Lock, Plus, Trash2, PenLine } from 'lucide-react';
+import { X, Send, Copy, Check, Mail, AlertTriangle, RotateCcw, CheckCircle2, Lock, Plus, Trash2, PenLine, Globe2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
   initialDraftFields,
@@ -37,7 +37,7 @@ const CHANNEL_LABELS = { mailto: 'email app', gmail: 'Gmail', outlook: 'Outlook'
 function Field({ label, missing, children, className = '' }) {
   return (
     <label className={`block ${className}`}>
-      <span className={`text-[12.5px] font-extrabold block mb-1 ${missing ? 'text-amber-300' : 'text-[#dcd2cd]'}`}>
+      <span className={`text-[12.5px] font-extrabold block mb-1 ${missing ? 'text-warn' : 'text-ink-2'}`}>
         {label}{missing && ' *'}
       </span>
       {children}
@@ -45,7 +45,7 @@ function Field({ label, missing, children, className = '' }) {
   );
 }
 
-export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendReply, currentUser, onSaveSignatures, onSaveDestTariff }) {
+export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendReply, currentUser, onSaveSignatures, onSaveDestTariff, onAskAgent }) {
   const [tariffSaved, setTariffSaved] = useState(false);
   const [f, setF] = useState(null);
   const [managingSignatures, setManagingSignatures] = useState(false);
@@ -60,7 +60,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
       setBodyOverride(null);
       setCopied(false);
     }
-  }, [inquiry, isOpen]);
+    // By id: the same inquiry coming back updated (an agent request logged) keeps the rep's edits.
+  }, [inquiry?.id, isOpen]);
 
   const generated = useMemo(() => {
     if (!inquiry || !f) return null;
@@ -163,20 +164,20 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-6xl max-h-[94vh] flex flex-col bg-[#0d0b0a] border border-[#FFA08C]/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(255,160,140,0.3)]">
+      <div className="relative w-full max-w-6xl max-h-[94vh] flex flex-col bg-surface border border-accent/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(255,160,140,0.3)]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
           <div className="flex items-center gap-2">
-            <Mail size={16} className="text-[#FFA08C]" />
-            <span className="text-[15px] font-extrabold text-white uppercase tracking-wider">
-              Reply & Quote: <span className="font-mono text-[#FFA08C]">{inquiry.id}</span>
+            <Mail size={16} className="text-accent-ink" />
+            <span className="text-[15px] font-extrabold text-ink uppercase tracking-wider">
+              Reply & Quote: <span className="font-mono text-accent-ink">{inquiry.id}</span>
             </span>
-            <span className="text-sm text-[#dcd2cd] font-semibold ml-2 truncate max-w-[320px]">{inquiry.shipperName}</span>
+            <span className="text-sm text-ink-2 font-semibold ml-2 truncate max-w-[320px]">{inquiry.shipperName}</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full bg-[#181412] hover:bg-[rgba(255,160,140,0.2)] text-slate-400 hover:text-white"
+            className="p-1 rounded-full bg-raised hover:bg-[rgba(255,160,140,0.2)] text-ink-2 hover:text-ink"
           >
             <X size={18} />
           </button>
@@ -185,9 +186,9 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
         <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-2">
 
           {/* Left: details */}
-          <div className="p-5 space-y-4 border-b lg:border-b-0 lg:border-r border-[#342b27]">
+          <div className="p-5 space-y-4 border-b lg:border-b-0 lg:border-r border-line">
             <div>
-              <div className="text-[13px] font-extrabold text-[#FFA08C] uppercase tracking-wider mb-2">1. Confirm shipment details</div>
+              <div className="text-[13px] font-extrabold text-accent-ink uppercase tracking-wider mb-2">1. Confirm shipment details</div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Contact person">
                   <input value={f.contactPerson} onChange={set('contactPerson')} className="scm-input w-full" />
@@ -216,7 +217,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                   {(() => {
                     const calc = cbmFromDimensions(f.dimensions, f.packages);
                     return calc > 0 && Math.abs(calc - (Number(f.volumeCbm) || 0)) > 0.001 ? (
-                      <button type="button" onClick={() => setF(prev => ({ ...prev, volumeCbm: calc }))} className="text-[12px] text-[#FFA08C] hover:text-white font-bold underline mt-0.5">
+                      <button type="button" onClick={() => setF(prev => ({ ...prev, volumeCbm: calc }))} className="text-[12px] text-accent-ink hover:text-ink font-bold underline mt-0.5">
                         {Number(f.volumeCbm) > 0 ? `Dimensions give ${calc}. Use that?` : `Calculate from dimensions: ${calc}`}
                       </button>
                     ) : null;
@@ -233,42 +234,42 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
 
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-[13px] font-extrabold text-[#FFA08C] uppercase tracking-wider">2. Enter the quotation</div>
-                <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden" title="Quote format">
+                <div className="text-[13px] font-extrabold text-accent-ink uppercase tracking-wider">2. Enter the quotation</div>
+                <div className="flex items-center rounded-full border border-line-3 overflow-hidden" title="Quote format">
                   {['FCL', 'LCL'].map(k => (
                     <button key={k} type="button" onClick={() => f.format !== k && switchFormat(k)}
-                      className={`px-3.5 py-1 text-[13px] font-extrabold ${f.format === k ? 'bg-[#FFA08C] text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}>
+                      className={`px-3.5 py-1 text-[13px] font-extrabold ${f.format === k ? 'bg-accent text-on-accent' : 'text-ink-2 hover:text-ink'}`}>
                       {k}
                     </button>
                   ))}
                 </div>
               </div>
               {lcl && (
-                <div className="text-[12.5px] text-[#b3a59e] mb-2">
+                <div className="text-[12.5px] text-ink-3 mb-2">
                   LCL: freight per W/M (1 CBM or 1,000 kg, whichever is higher).
-                  {wm > 0 && <> This shipment is <b className="text-white">{wm} W/M</b> ({Number(f.volumeCbm) || 0} CBM, {Number(f.grossWeightKg) || 0} kg).</>}
+                  {wm > 0 && <> This shipment is <b className="text-ink">{wm} W/M</b> ({Number(f.volumeCbm) || 0} CBM, {Number(f.grossWeightKg) || 0} kg).</>}
                 </div>
               )}
               <div className="grid grid-cols-12 gap-2 mb-3">
                 <Field label="Currency" className="col-span-3">
-                  <select value={f.currency} onChange={set('currency')} className="scm-select w-full font-extrabold text-[#FFA08C]">
+                  <select value={f.currency} onChange={set('currency')} className="scm-select w-full font-extrabold text-accent-ink">
                     {CURRENCIES.map(([c, sym]) => <option key={c} value={c}>{c} ({sym})</option>)}
                   </select>
                 </Field>
                 <Field label="Ocean freight" missing={missingKeys.has('rateAmount')} className="col-span-5">
-                  <input type="number" min="0" value={f.rateAmount} onChange={set('rateAmount')} className="scm-input w-full font-mono font-bold text-emerald-400" placeholder={lcl ? 'e.g. 40' : 'e.g. 1450'} />
+                  <input type="number" min="0" value={f.rateAmount} onChange={set('rateAmount')} className="scm-input w-full font-mono font-bold text-good" placeholder={lcl ? 'e.g. 40' : 'e.g. 1450'} />
                 </Field>
                 <Field label="Per" className="col-span-4">
                   <input value={f.rateUnit} onChange={set('rateUnit')} className="scm-input w-full" />
                 </Field>
               </div>
 
-              <div className="mb-3 rounded-lg border border-[#342b27] overflow-hidden">
-                <div className="px-3 py-1.5 bg-[#110e0d] text-[12.5px] font-extrabold text-[#dcd2cd] flex items-center justify-between">
-                  <span>Origin charges <span className="font-normal text-[#8a7d77]">(lines left blank are not put in the reply)</span></span>
-                  <button type="button" onClick={addCharge} className="text-[#FFA08C] hover:text-white flex items-center gap-1"><Plus size={12} />Add line</button>
+              <div className="mb-3 rounded-lg border border-line overflow-hidden">
+                <div className="px-3 py-1.5 bg-panel-2 text-[12.5px] font-extrabold text-ink-2 flex items-center justify-between">
+                  <span>Origin charges <span className="font-normal text-ink-4">(lines left blank are not put in the reply)</span></span>
+                  <button type="button" onClick={addCharge} className="text-accent-ink hover:text-ink flex items-center gap-1"><Plus size={12} />Add line</button>
                 </div>
-                <div className="divide-y divide-[#1f1916]">
+                <div className="divide-y divide-line-soft-4">
                   {f.charges.map(c => (
                     <div key={c.id} className="grid grid-cols-12 gap-1.5 p-1.5 items-center">
                       <input value={c.name} onChange={setCharge(c.id, 'name')} className="scm-input col-span-5 !py-1 text-[13px]" placeholder="Charge name" />
@@ -277,43 +278,43 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                       </select>
                       <input type="number" min="0" value={c.amount} onChange={setCharge(c.id, 'amount')} className="scm-input col-span-2 !py-1 text-[13px] font-mono" placeholder="Amount" />
                       <input value={c.unit} onChange={setCharge(c.id, 'unit')} list="charge-units" className="scm-input col-span-2 !py-1 text-[13px]" placeholder="per …" title="Pick a unit or type your own" />
-                      <button type="button" onClick={() => removeCharge(c.id)} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove line"><Trash2 size={13} /></button>
+                      <button type="button" onClick={() => removeCharge(c.id)} className="col-span-1 flex justify-center text-ink-4b hover:text-danger-ink" title="Remove line"><Trash2 size={13} /></button>
                     </div>
                   ))}
-                  {f.charges.length === 0 && <div className="px-3 py-2 text-[12.5px] text-[#8a7d77]">No origin charges.</div>}
+                  {f.charges.length === 0 && <div className="px-3 py-2 text-[12.5px] text-ink-4">No origin charges.</div>}
                   <datalist id="charge-units">
                     {['/ W/M', ...DOC_UNITS, 'per container'].map(u => <option key={u} value={u} />)}
                   </datalist>
                 </div>
               </div>
 
-              <div className="mb-3 rounded-lg border border-[#342b27] overflow-hidden">
-                <div className="px-3 py-1.5 bg-[#110e0d] text-[12.5px] font-extrabold text-[#dcd2cd] flex items-center justify-between gap-2">
+              <div className="mb-3 rounded-lg border border-line overflow-hidden">
+                <div className="px-3 py-1.5 bg-panel-2 text-[12.5px] font-extrabold text-ink-2 flex items-center justify-between gap-2">
                   <span>Destination charges</span>
-                  <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden">
+                  <div className="flex items-center rounded-full border border-line-3 overflow-hidden">
                     {[[false, 'Itemised'], [true, 'As agreed']].map(([v, label]) => (
                       <button key={label} type="button" onClick={() => setF(prev => ({ ...prev, destAgreed: v }))}
-                        className={`px-2.5 py-0.5 text-[12px] font-extrabold ${f.destAgreed === v ? 'bg-[#FFA08C] text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}>
+                        className={`px-2.5 py-0.5 text-[12px] font-extrabold ${f.destAgreed === v ? 'bg-accent text-on-accent' : 'text-ink-2 hover:text-ink'}`}>
                         {label}
                       </button>
                     ))}
                   </div>
                 </div>
                 {f.destAgreed ? (
-                  <div className="px-3 py-2 text-[12.5px] text-[#dcd2cd]">
-                    The quote will end with <b className="text-white">"Destination charges: As agreed"</b>.
-                    {destChargesAgreedNote && <span className="text-emerald-400 font-bold"> (the customer's email says they're agreed)</span>}
+                  <div className="px-3 py-2 text-[12.5px] text-ink-2">
+                    The quote will end with <b className="text-ink">"Destination charges: As agreed"</b>.
+                    {destChargesAgreedNote && <span className="text-good font-bold"> (the customer's email says they're agreed)</span>}
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#1f1916]">
+                  <div className="divide-y divide-line-soft-4">
                     {f.destCharges.map(c => (
                       <div key={c.id} className="grid grid-cols-12 gap-1.5 p-1.5 items-center">
                         <input value={c.name} onChange={setDest(c.id, 'name')} className="scm-input col-span-3 !py-1 text-[13px] font-bold" placeholder="Charge" />
                         <input value={c.value} onChange={setDest(c.id, 'value')} className="scm-input col-span-8 !py-1 text-[13px] font-mono" placeholder="e.g. INR 750/ CBM or Minimum INR 2500/ Shipment" />
-                        <button type="button" onClick={() => setF(prev => ({ ...prev, destCharges: prev.destCharges.filter(x => x.id !== c.id) }))} className="col-span-1 flex justify-center text-[#6f625c] hover:text-[#f87171]" title="Remove line"><Trash2 size={13} /></button>
+                        <button type="button" onClick={() => setF(prev => ({ ...prev, destCharges: prev.destCharges.filter(x => x.id !== c.id) }))} className="col-span-1 flex justify-center text-ink-4b hover:text-danger-ink" title="Remove line"><Trash2 size={13} /></button>
                       </div>
                     ))}
-                    <div className="px-3 py-1.5 text-[12px] text-[#8a7d77] flex items-center justify-between gap-2">
+                    <div className="px-3 py-1.5 text-[12px] text-ink-4 flex items-center justify-between gap-2">
                       <span>{lcl ? 'Your standard LCL destination rates, filled in. Edit any line for this quote.' : 'Lines left blank are not put in the reply.'}</span>
                       <span className="flex items-center gap-3 shrink-0">
                         {lcl && onSaveDestTariff && (
@@ -322,11 +323,11 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                               const err = await onSaveDestTariff(f.destCharges.filter(c => c.name.trim()).map(c => [c.name.trim(), c.value.trim()]));
                               if (!err) { setTariffSaved(true); setTimeout(() => setTariffSaved(false), 2500); }
                             }}
-                            className="text-emerald-400 hover:text-white font-bold">
+                            className="text-good hover:text-ink font-bold">
                             {tariffSaved ? 'Saved as standard ✓' : 'Save as my standard rates'}
                           </button>
                         )}
-                        <button type="button" onClick={() => setF(prev => ({ ...prev, destCharges: [...prev.destCharges, newDestCharge()] }))} className="text-[#FFA08C] hover:text-white flex items-center gap-1"><Plus size={12} />Add line</button>
+                        <button type="button" onClick={() => setF(prev => ({ ...prev, destCharges: [...prev.destCharges, newDestCharge()] }))} className="text-accent-ink hover:text-ink flex items-center gap-1"><Plus size={12} />Add line</button>
                       </span>
                     </div>
                   </div>
@@ -352,7 +353,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
 
               {isExWorks(f) && (
                 <div className="mt-3 p-3 rounded-lg border-2 border-dashed border-sky-500/50 bg-[rgba(14,165,233,0.06)] space-y-2">
-                  <div className="text-[12.5px] font-extrabold text-sky-300 uppercase tracking-wider">
+                  <div className="text-[12.5px] font-extrabold text-info uppercase tracking-wider">
                     Internal note (ex-works): not sent to the customer
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -363,6 +364,26 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
                       <input value={f.sellCharge} onChange={set('sellCharge')} className="scm-input w-full font-mono" placeholder="e.g. USD 120 per shipment" />
                     </Field>
                   </div>
+                  {onAskAgent && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <span className="text-[12.5px] text-ink-3">
+                        {(inquiry.agentRequests || []).length
+                          ? `Rates asked from ${inquiry.agentRequests.map(r => r.agentName || r.agentEmail).join(', ')}.`
+                          : 'No buy rate yet? Ask your agent at origin.'}
+                      </span>
+                      <button type="button" className="btn-dark text-[13px] !py-1"
+                        onClick={() => onAskAgent({
+                          ...inquiry,
+                          pol: f.pol, polCode: f.polCode, pod: f.pod, podCode: f.podCode,
+                          containerType: f.containerType, routingMode: f.routingMode, commodity: f.commodity,
+                          grossWeightKg: Number(f.grossWeightKg) || 0, volumeCbm: Number(f.volumeCbm) || 0,
+                          incoterms: f.incoterms, packages: f.packages, dimensions: f.dimensions, hsnCode: f.hsnCode,
+                          pickupAddress: f.pickupAddress,
+                        })}>
+                        <Globe2 size={13} className="text-info" /><span>Ask agent for rates</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -371,7 +392,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
           {/* Right: draft */}
           <div className="p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <div className="text-[13px] font-extrabold text-[#FFA08C] uppercase tracking-wider">3. Review the reply</div>
+              <div className="text-[13px] font-extrabold text-accent-ink uppercase tracking-wider">3. Review the reply</div>
               {(subjectOverride !== null || bodyOverride !== null) && (
                 <button
                   onClick={() => { setSubjectOverride(null); setBodyOverride(null); }}
@@ -384,8 +405,8 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[#dcd2cd]">
-              <span>To: <span className="font-mono font-bold text-white">{f.contactEmail || '—'}</span></span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-2">
+              <span>To: <span className="font-mono font-bold text-ink">{f.contactEmail || '—'}</span></span>
               <span className="flex items-center gap-1.5">
                 Signature
                 <select value={f.signatureId} onChange={set('signatureId')} className="scm-select !py-1 text-[13px]">
@@ -400,12 +421,12 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
             </div>
             {missing.length > 0 ? (
               <div className="relative flex-1 min-h-[400px] rounded-lg border border-amber-400/50 overflow-hidden">
-                <pre aria-hidden="true" className="absolute inset-0 p-3 text-[13px] font-mono text-slate-400 whitespace-pre-wrap blur-[3px] select-none pointer-events-none opacity-50">{body}</pre>
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center bg-[#0d0b0a]/70">
-                  <Lock size={22} className="text-amber-300" />
-                  <div className="font-extrabold text-white">Reply locked until the details are filled in</div>
-                  <div className="text-sm text-amber-300 font-bold">Fill in: {missing.map(m => m.label).join(', ')}</div>
-                  <div className="text-[12.5px] text-[#b3a59e]">Use the fields on the left. The reply unlocks by itself once they're all filled.</div>
+                <pre aria-hidden="true" className="absolute inset-0 p-3 text-[13px] font-mono text-ink-2 whitespace-pre-wrap blur-[3px] select-none pointer-events-none opacity-50">{body}</pre>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center bg-surface/70">
+                  <Lock size={22} className="text-warn" />
+                  <div className="font-extrabold text-ink">Reply locked until the details are filled in</div>
+                  <div className="text-sm text-warn font-bold">Fill in: {missing.map(m => m.label).join(', ')}</div>
+                  <div className="text-[12.5px] text-ink-3">Use the fields on the left. The reply unlocks by itself once they're all filled.</div>
                 </div>
               </div>
             ) : (
@@ -424,7 +445,7 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
               </>
             )}
             {bodyOverride !== null && (
-              <div className="text-[12.5px] text-[#b3a59e]">
+              <div className="text-[12.5px] text-ink-3">
                 You've edited the draft by hand, so changes to the details on the left won't update it until you rebuild it.
               </div>
             )}
@@ -432,14 +453,14 @@ export default function ReplyComposerModal({ isOpen, onClose, inquiry, onSendRep
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-[#342b27] bg-[#110e0d] flex flex-wrap items-center justify-between gap-3">
+        <div className="px-5 py-3 border-t border-line bg-panel-2 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
             {canSend ? (
-              <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span className="flex items-center gap-1.5 text-good font-bold">
                 <CheckCircle2 size={15} /> Ready. Copy the reply, paste it into a Reply on the customer's email, then mark it replied.
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+              <span className="flex items-center gap-1.5 text-warn font-bold">
                 <AlertTriangle size={15} />
                 {missing.length > 0
                   ? `Fill in: ${missing.map(m => m.label).join(', ')}`

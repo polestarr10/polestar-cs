@@ -7,6 +7,10 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Theme colours: values for dark and light mode are in index.css.
+        ...Object.fromEntries([
+          'page', 'surface', 'field', 'panel', 'panel-2', 'panel-3', 'panel-4', 'raised', 'raised-2', 'raised-3', 'hover', 'hover-2', 'line', 'line-2', 'line-3', 'line-4', 'line-soft', 'line-soft-2', 'line-soft-3', 'line-soft-4', 'ink', 'ink-f5', 'ink-e5', 'ink-soft', 'ink-2', 'ink-3', 'ink-3b', 'ink-4', 'ink-4b', 'accent', 'accent-ink', 'on-accent', 'danger', 'danger-ink', 'danger-ink-2', 'purple', 'purple-ink', 'purple-ink-2', 'good', 'good-2', 'good-500', 'warn', 'warn-400', 'info', 'rose', 'good-tint', 'info-tint',
+        ].map(name => [name, `rgb(var(--c-${name}) / <alpha-value>)`])),
         dark: {
           950: '#080605',
           900: '#0d0b0a',

@@ -88,7 +88,7 @@ export default function StatusBadge({ status, onChange, allowChange = true }) {
         title="Click to change CRM status"
       >
         {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-          <option key={key} value={key} className="bg-[#120f0e] text-white py-1 font-semibold">
+          <option key={key} value={key} className="bg-panel text-ink py-1 font-semibold">
             {config.label}
           </option>
         ))}

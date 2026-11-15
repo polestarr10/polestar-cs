@@ -8,6 +8,7 @@ const MAX_IMAGE_SIDE = 2000;
 const MAX_PDF_BYTES = 3.5 * 1024 * 1024; // keeps the request under Vercel's 4.5 MB body limit
 
 import { pickSignature } from '../utils/signatures';
+import { normalizeDimensions } from '../utils/emailParser';
 
 export class EmailAIError extends Error {
   constructor(message, code) {
@@ -167,7 +168,7 @@ export function resultToInquiry(result, { existing, currentUser, rawText, screen
     containerType: s.containerType,
     packages: s.packages || '',
     hsnCode: s.hsnCode || '',
-    dimensions: s.dimensions || '',
+    dimensions: normalizeDimensions(s.dimensions),
     pickupAddress: s.pickupAddress || '',
     polSuggested: s.polSuggested || '',
     customerAddress: s.customerAddress || '',

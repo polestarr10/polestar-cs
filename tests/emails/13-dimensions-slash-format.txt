@@ -1,0 +1,54 @@
+From: Rohan Kale [mailto:rohan.kale@bluecrestlogistics.com]
+Sent: 12 November 2026 15:27
+To: Ravi Mehta
+Cc: Anil Shah
+Subject: LI2611099 RFQ//PO#4400001234//NORDVIK MACHINES AB//ACL//MUMBAI
+
+ 
+
+Dear Sir/mam,
+
+ 
+
+Please quote best rates for below
+
+ 
+
+POL : Gothenburg, Sweden 
+
+POD:- Nhava Sheva, India 
+
+Tos - FOB
+
+ 
+
+CARGO DETAILS,
+
+ 
+
+1 Case
+
+Gross Weight (kg) 419
+
+Dimension (cm) 120/80/60 (Length/Width/Height)
+
+Type of packing: Wooden pallet box
+
+ 
+
+ 
+
+ 
+
+Best Regards
+
+Rohan Kale
+
+Pricing Executive
+
+E : rohan.kale@bluecrestlogistics.com
+=== EXPECTED ===
+{ "kind": "new_inquiry",
+  "inquiries": [ { "pol": "Gothenburg", "polCode": "SEGOT", "pod": "Nhava Sheva", "podCode": "INNSA",
+    "direction": "Import", "incoterms": "FOB", "packages": "1 case", "grossWeightKg": 419,
+    "dimensions": "120 × 80 × 60 cm", "volumeCbm": 0.576, "containerType": "LCL" } ] }

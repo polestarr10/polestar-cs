@@ -4,7 +4,7 @@
 
 export const PORT_MAP = [
   { name: "Mundra Port", code: "INMUN", country: "India", keywords: ["mundra", "inmun"] },
-  { name: "Nhava Sheva / JNPT", code: "INNSA", country: "India", keywords: ["nhava sheva", "nhavasheva", "nhava-sheva", "nhava", "jnpt", "jawaharlal nehru", "innsa"] },
+  { name: "Nhava Sheva / JNPT", code: "INNSA", country: "India", keywords: ["nhava sheva", "nhavasheva", "nhava-sheva", "nhava", "jnpt", "jawaharlal nehru", "innsa", "nsa"] },
   { name: "Chennai Port", code: "INMAA", country: "India", keywords: ["chennai", "inmaa", "madras"] },
   { name: "Kolkata Port", code: "INCCU", country: "India", keywords: ["kolkata", "calcutta", "inccu", "haldia"] },
   { name: "Tuticorin Port", code: "INTUT", country: "India", keywords: ["tuticorin", "intut", "v.o.chidambaranar"] },
@@ -14,6 +14,7 @@ export const PORT_MAP = [
   { name: "Jebel Ali", code: "AEJEA", country: "UAE", keywords: ["jebel ali", "aejea"] },
   { name: "Rotterdam", code: "NLRTM", country: "Netherlands", keywords: ["rotterdam", "nlrtm"] },
   { name: "Antwerp", code: "BEANR", country: "Belgium", keywords: ["antwerp", "beanr"] },
+  { name: "Gothenburg", code: "SEGOT", country: "Sweden", keywords: ["gothenburg", "goteborg", "göteborg", "segot"] },
   { name: "Hamburg", code: "DEHAM", country: "Germany", keywords: ["hamburg", "deham"] },
   { name: "Singapore", code: "SGSIN", country: "Singapore", keywords: ["singapore", "sgsin"] },
   { name: "Port Klang", code: "MYPKG", country: "Malaysia", keywords: ["port klang", "mypkg"] },
@@ -53,7 +54,7 @@ export function portCodeFor(name) {
   return known ? known.code : '';
 }
 
-const PICKUP_LABELS = ['Factory Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From'];
+const PICKUP_LABELS = ['Factory Address', 'Ex[\\s-]?Works?\\s*(?:Pick\\s*-?\\s*up\\s*)?Address', 'EXW\\s*Address', 'Pick\\s*-?\\s*up Address', 'Pick\\s*-?\\s*up Location', 'Supplier Address', 'Collection Address', 'Pick\\s*-?\\s*up From'];
 
 // Where in China -> the port cargo from there usually sails from.
 const REGION_PORTS = [
@@ -65,18 +66,29 @@ const REGION_PORTS = [
   ['CNXMN', /\b(Xiamen|Fujian|Fuzhou|Quanzhou|Jinjiang|Zhangzhou|Putian)\b|厦门|福建/i],
 ];
 
+// A name used for a small place inside another city ("Lishui Town, Foshan" is
+// in Guangdong, not Lishui city in Zhejiang): skipped.
+const LOCALITY_AFTER = /^\s*(?:town|township|village|district|county|road|rd\b|street|st\b|avenue|industrial|zone|park|bldg|building)/i;
+
 // Suggests the usual port for a Chinese place (the first place named wins), or null.
 export function suggestPortFromPlace(text) {
   if (!text) return null;
   let best = null;
   for (const [code, re] of REGION_PORTS) {
-    const m = re.exec(text);
-    if (m && (!best || m.index < best.index)) best = { code, index: m.index, place: m[1] || m[0] };
+    for (const m of text.matchAll(new RegExp(re.source, 'gi'))) {
+      if (LOCALITY_AFTER.test(text.slice(m.index + m[0].length))) continue;
+      if (!best || m.index < best.index) best = { code, index: m.index, place: m[1] || m[0] };
+      break;
+    }
   }
   if (!best) return null;
   const port = PORT_MAP.find(p => p.code === best.code);
   return port ? { port, place: best.place } : null;
 }
+
+// Countries an import comes from, when the email names the country but no port.
+const ORIGIN_COUNTRY_AT_END = new RegExp(`\\b(${[...new Set(PORT_MAP.filter(p => p.country !== 'India').map(p => p.country))]
+  .concat(['Korea', 'Japan', 'Italy', 'Turkey', 'Indonesia', 'Europe']).join('|')})\\s*$`, 'i');
 
 const FREE_MAIL = ["gmail", "yahoo", "hotmail", "outlook", "rediffmail", "live", "icloud", "proton"];
 
@@ -480,7 +492,16 @@ function splitRun(digits, unit) {
 }
 
 function fixDimensions(text) {
-  let t = text.replace(/\*/g, ' ').trim();
+  let t = text
+    // "(Length/Width/Height)", "(L x W x H)": just says the order.
+    .replace(/\(\s*L(?:ength)?\s*[\/x×*]\s*(?:W(?:idth)?|B(?:readth)?)\s*[\/x×*]\s*H(?:eight)?\s*\)/i, '')
+    // "120/80/60" is L × W × H.
+    .replace(/\b(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\b/g, '$1 × $2 × $3')
+    .trim();
+  // "95x118X110cm*1": a size and how many packages are that size.
+  const counted = t.match(/^(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*(mm|cm|m|inch(?:es)?|in)?\s*[x×*]\s*(\d{1,4})\s*(?:nos?\.?|pcs?\.?)?$/i);
+  if (counted) return `${counted[1]} × ${counted[2]} × ${counted[3]}${counted[4] ? ` ${counted[4].toLowerCase()}` : ''} × ${counted[5]}`;
+  t = t.replace(/\*/g, ' ').trim();
   const metres = t.match(/^(\d+(?:\.\d+)?)\s*m\s*(\d+(?:\.\d+)?)\s*m\s*(\d+(?:\.\d+)?)\s*m\b/i);
   if (metres) return `${metres[1]} × ${metres[2]} × ${metres[3]} m`;
   t = t.replace(/\b(\d{6,13})\s*(mm|cm)\b/gi, (whole, digits, unit) => {
@@ -511,6 +532,13 @@ function sizeInMetres(text) {
   return nums.reduce((v, n) => v * n * f, 1);
 }
 
+// Tidies sizes from any reader ("120/80/60 (Length/Width/Height)", "95x118x110cm*1")
+// into the "L × W × H unit" form the CBM calculation reads.
+export function normalizeDimensions(dimensions) {
+  return (dimensions || '').split(/\s*;\s*/).filter(Boolean)
+    .flatMap(d => d.split(SIZE_SPLIT)).map(d => fixDimensions(d.trim())).filter(Boolean).join('; ');
+}
+
 export function cbmFromDimensions(dimensions, packages = '') {
   const sizes = (dimensions || '').split(/\s*;\s*/).filter(Boolean);
   if (!sizes.length) return 0;
@@ -520,6 +548,8 @@ export function cbmFromDimensions(dimensions, packages = '') {
     const m3 = sizeInMetres(size);
     if (!m3) return 0; // one size we can't read: don't guess a total
     const n = Number((size.match(new RegExp(`(?:[x×*]|\\()\\s*(\\d{1,4})\\s*(?:nos?\\.?\\s*)?${PKG_KIND}`, 'i')) || [])[1])
+      // "95 × 118 × 110 cm × 1": a fourth number is the count.
+      || ((size.match(/\d+(?:\.\d+)?/g) || []).length === 4 && Number((size.match(/[x×*]\s*(\d{1,4})\s*(?:nos?\.?|pcs?\.?)?\s*$/i) || [])[1]))
       || (sizes.length === 1 && pkgCount ? pkgCount : 1);
     total += m3 * n;
   }
@@ -532,30 +562,41 @@ export function cbmFromDimensions(dimensions, packages = '') {
 //   L-1140mm, *W-750mm, *H- 830mm
 //   L-1370mm, *W-575mm, *H- 620mm        (blank lines between are fine)
 // Sizes are joined with "; " in the order written.
-const DIM_LINE = /\d\s*(?:mm|cm|m|in|inch|")?\s*[x×*]\s*\d|\b[LWH]\s*[-:=.]?\s*\d/i;
+const DIM_LINE = /\d\s*(?:mm|cm|m|in|inch|")?\s*[x×*]\s*\d|\b[LWH]\s*[-:=.]?\s*\d|\d\s*\/\s*\d+(?:\.\d+)?\s*\/\s*\d/i;
+// "Dimensions:", "Pallet Dimensions:", "Dimension (cm) 120/80/60" (unit in brackets, no colon).
+const DIM_LABEL = /^[\s>*•-]*(?:(?:box|carton|package|pkg|cargo|pallet|crate|case)s?\s*)?(?:dimensions?|dims|measurements?)\b(?!.*\bcbm\b)\s*(?:\(([^)]*)\)\s*[:\-–]?|[:\-–])\s*/i;
+// Several sizes on one line: "95x118x110cm*1 \ 138x118x110cm*1", "… / …", "… | …".
+const SIZE_SPLIT = /\s*\\\s*|\s+\/\s+|\s*\|\s*/;
 
 function dimensionsFrom(raw) {
   const lines = raw.replace(/\r/g, '').split('\n');
-  const start = lines.findIndex(l => /^[\s>*•-]*(?:box|carton|package|pkg|cargo)?\s*(?:dimensions?|dims|measurements?)\b(?!.*\bcbm\b)\s*(?:\([^)]*\))?\s*[:\-–]/i.test(l));
+  const start = lines.findIndex(l => DIM_LABEL.test(l));
   if (start === -1) {
     // No label: a line that is only a size, e.g. "1m1m1.85m".
     const bare = lines.map(l => l.trim()).find(l => /^\d+(?:\.\d+)?\s*m\s*\d+(?:\.\d+)?\s*m\s*\d+(?:\.\d+)?\s*m$/i.test(l));
     return bare ? fixDimensions(bare) : '';
   }
-  const clean = (s) => fixDimensions(s.replace(/\*/g, '').replace(/\s*-\s*(?=\d)/g, '-').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim());
+  // A unit in the label ("Dimension (cm)") applies to sizes written without one.
+  const labelUnit = ((lines[start].match(DIM_LABEL)[1] || '').match(/^\s*(mm|cm|m|inch(?:es)?|in)\s*$/i) || [])[1]?.toLowerCase() || '';
+  const withUnit = (s) => (labelUnit && s && !/\d\s*(?:mm|cm|m|inch(?:es)?|in|")(?![a-z])/i.test(s) ? `${s} ${labelUnit}` : s);
+  // A "*" before a final count ("…cm*1") is kept for fixDimensions to read.
+  const clean = (s) => withUnit(fixDimensions(s.replace(/\*(?!\s*\d+\s*$)/g, '').replace(/\s*-\s*(?=\d)/g, '-').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim()));
   const sizes = [];
-  const inline = lines[start].replace(/^[^:\-–]*[:\-–]\s*/, '').trim();
-  if (inline) sizes.push(clean(inline));
+  const addSizes = (text) => text.split(SIZE_SPLIT).map(x => x.trim()).filter(Boolean).forEach(x => sizes.push(clean(x)));
+  const inline = lines[start].replace(DIM_LABEL, '').trim();
+  if (inline) addSizes(inline);
   let blanks = 0;
   for (let k = start + 1; k < lines.length && sizes.length < 30; k++) {
     const line = lines[k].trim();
     if (!line) { if (++blanks > 2) break; continue; }
     blanks = 0;
     if (!DIM_LINE.test(line) || /\b(?:cbm|kgs?|weight)\b/i.test(line)) break;
-    sizes.push(clean(line.replace(/^[\s>*•-]+/, '')));
+    addSizes(line.replace(/^[\s>*•-]+/, ''));
   }
   return sizes.join('; ').slice(0, 400);
 }
+
+const ADDRESS_PREFIX = /^(?:add|addr|address)\.?\s*[:：]\s*/i;
 
 function labelBlock(raw, names) {
   const lines = raw.replace(/\r/g, '').split('\n');
@@ -565,12 +606,15 @@ function labelBlock(raw, names) {
     const start = lines.findIndex(l => re.test(l));
     if (start === -1) continue;
     const parts = [];
-    const first = lines[start].match(re)[1].trim();
+    const first = lines[start].match(re)[1].replace(ADDRESS_PREFIX, '').trim();
     if (first) parts.push(first);
     for (let k = start + 1; k < lines.length && parts.length < 8; k++) {
-      const line = lines[k].replace(/^[\s>]+/, '').trim();
+      // "Add: F3, Litai Bldg, …": the address itself, not another label.
+      const line = lines[k].replace(/^[\s>]+/, '').replace(ADDRESS_PREFIX, '').trim();
       if (!line) {
-        if (parts.length) break; // blank line ends the address
+        // A blank line ends the address, unless the last line ended with a comma
+        // (Outlook copies put a blank line between every line).
+        if (parts.length && !/,\s*$/.test(parts[parts.length - 1])) break;
         continue;                // label on its own line: skip blanks before the address
       }
       if (BLOCK_STOP.test(line) || OTHER_LABEL.test(line)) break;
@@ -587,7 +631,7 @@ export const DEST_AGREED_NOTE = 'Destination charges as agreed';
 
 // Package kinds, optionally with a material: "wooden boxes", "jumbo bags", "pallets".
 const PKG_KIND = '(?:(?:wooden|wood|plywood|ply|corrugated|jumbo|steel|plastic|pp|hdpe|paper|gunny|carton)\\s+)?'
-  + '(?:boxes|box|packages|package|pkgs|pkg|cartons|carton|ctns|ctn|pallets|pallet|plts|skids|skid|cases|case|crates|crate|'
+  + '(?:boxes|box|packages|package|pkgs|pkg|cartons|carton|ctns|ctn|pallets|pallet|plts|plt|skids|skid|cases|case|crates|crate|'
   + 'bags|bag|sacks|sack|drums|drum|barrels|barrel|rolls|roll|bundles|bundle|coils|coil|pieces|piece|pcs|ibcs|ibc|totes|tote|reels|reel)';
 const GENERIC_PKG = /^(packages?|pkgs?)$/i;
 
@@ -610,6 +654,8 @@ function packagesFrom(raw, label) {
   }
   // A generic word ("packages") gives way to the actual packing if it's named elsewhere.
   if ((!kind || GENERIC_PKG.test(kind)) && kindFromPacking) kind = kindFromPacking;
+  // "Plt" / "Plts" read as pallets.
+  if (/^plts?$/i.test(kind)) kind = Number(count) === 1 ? 'pallet' : 'pallets';
   if (count) return `${count} ${kind.toLowerCase()}`.trim();
   return packing ? packing.slice(0, 60) : '';
 }
@@ -715,6 +761,14 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
         podInfo ||= { name: to.name, code: to.code };
         break;
       }
+      // "EXW China to NSA": a country of origin, then an Indian port. The port of
+      // loading is then suggested from the pickup address below.
+      const country = !from && to?.country === 'India' && m[1].match(ORIGIN_COUNTRY_AT_END);
+      if (country) {
+        polInfo ||= { name: country[1].replace(/\b\w/g, c => c.toUpperCase()), code: '' };
+        podInfo ||= { name: to.name, code: to.code };
+        break;
+      }
     }
   }
   // Without labels, assume an export (India -> abroad) unless the email talks about imports.
@@ -785,7 +839,12 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     if (/^\s*\)?\s*(?:per|each|\/)\s*(?:container|cntr|box|unit)/.test(after) || /payload|\bnet\b/.test(before.slice(-15))) score -= 5;
     if (!bestWeight || score > bestWeight.score) bestWeight = { m, score };
   }
-  if (bestWeight) {
+  // Unit in brackets before the figure: "Gross Weight (kg) 419", "GW (MT): 2.4".
+  const unitFirst = raw.match(/\b(?:gross\s*(?:weight|wt)|g\.?\s*w\.?t?)\.?\s*\(\s*(kgs?|kilograms?|mts?|tons?|tonnes?)\s*\)\s*[:\-–]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i);
+  if (unitFirst && !(bestWeight?.score >= 2)) {
+    const value = parseFloat(unitFirst[2].replace(/,/g, ''));
+    grossWeightKg = Math.round(/^kg|^kilo/i.test(unitFirst[1]) ? value : value * 1000);
+  } else if (bestWeight) {
     const value = parseFloat(bestWeight.m[1].replace(/,/g, ''));
     grossWeightKg = Math.round(/^kg|^kilo/i.test(bestWeight.m[2]) ? value : value * 1000);
   }
@@ -819,7 +878,9 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     // "Cargo is Tiles." (but not "Cargo is ready on …" / "cargo is stackable")
     || (raw.match(/\b(?:cargo|commodity|goods|material)\s+(?:is|are)\s+(?!(?:ready|stackable|non|not|available|being|under|in|at|on|to|of|for|the|a|an)\b)([A-Za-z][^.\n;]{1,60})/i) || [])[1]?.trim()
     || '';
-  const commodityClean = commodity
+  const commodityFull = commodity + commodityContinuation(raw, commodity);
+  const bareHsn = (commodityFull.match(/[A-Za-z)]\s*[-–—]\s*(\d{8})\b/) || [])[1] || '';
+  const commodityClean = (bareHsn ? commodityFull.replace(new RegExp(`\\s*[-–—]\\s*${bareHsn}\\b`), '') : commodityFull)
     .replace(/^(?:description|details|desc\.?)\s*[:\-–]\s*/i, '')
     // The HSN code goes in its own field, so take it (and stray "*") out of the description.
     .replace(/\s*[([]\s*(?:HSN|H\.?S\.?)(?=[\s#:.\-–/]|code|no)[^)\]]*[)\]]/i, ' ')
@@ -889,7 +950,7 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     containerType,
     containerCount,
     packages,
-    hsnCode: hsn ? hsn[1].replace(/[ .]/g, '') : '',
+    hsnCode: hsn ? hsn[1].replace(/[ .]/g, '') : bareHsn,
     dimensions,
     pickupAddress,
     customerAddress,
@@ -911,6 +972,23 @@ export function extractShipment(raw, headers = parseHeaders(raw)) {
     ].filter(Boolean).join('; '),
     urgent: /\burgent\b|\basap\b|\bat the earliest\b/i.test(raw),
   };
+}
+
+// The commodity carried on to an indented line under its label:
+//   Cargo : RAW MATERIAL PARTS
+//               Transformer–85043100
+function commodityContinuation(raw, commodity) {
+  if (!commodity) return '';
+  const lines = raw.replace(/\r/g, '').split('\n');
+  const at = lines.findIndex(l => l.includes(commodity));
+  if (at === -1) return '';
+  for (let k = at + 1, blanks = 0; k < lines.length && blanks <= 1; k++) {
+    if (!lines[k].trim()) { blanks++; continue; }
+    const line = lines[k];
+    if (!/^[ \t]{4,}\S/.test(line) || OTHER_LABEL.test(line) || /^\s*(?:pkgs?|packages?|gw|gross|net|volume|cbm|weight)\b/i.test(line)) return '';
+    return `, ${line.trim()}`;
+  }
+  return '';
 }
 
 export function missingForQuote(s) {

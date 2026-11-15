@@ -23,24 +23,24 @@ function TargetCell({ value, onSave }) {
   return (
     <td className="sheet-cell-editable font-mono" title="Click to set this rep's weekly target (applies from this week on)"
       onClick={() => { setDraft(value ?? ''); setEditing(true); }}>
-      {value ?? <span className="text-amber-300">Set</span>}
+      {value ?? <span className="text-warn">Set</span>}
     </td>
   );
 }
 
 function ItemList({ title, items, empty, color }) {
   return (
-    <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-[#342b27] bg-[#110e0d] text-[14px] font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-        {title}<span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-[#181412]" style={{ color }}>{items.length}</span>
+    <div className="rounded-xl border border-line bg-surface overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-line bg-panel-2 text-[14px] font-extrabold text-ink uppercase tracking-wider flex items-center gap-2">
+        {title}<span className="text-[12px] font-bold px-2 py-0.5 rounded-full bg-raised" style={{ color }}>{items.length}</span>
       </div>
-      {items.length === 0 ? <div className="px-4 py-3 text-sm text-[#b3a59e]">{empty}</div> : (
-        <div className="divide-y divide-[#2a231f] max-h-[320px] overflow-y-auto">
+      {items.length === 0 ? <div className="px-4 py-3 text-sm text-ink-3">{empty}</div> : (
+        <div className="divide-y divide-line-soft max-h-[320px] overflow-y-auto">
           {items.map((m, idx) => (
             <div key={`${m.rep}-${m.id}-${idx}`} className="px-4 py-2 text-sm flex flex-wrap items-center gap-x-3 gap-y-0.5">
-              <span className="font-bold text-white min-w-[120px]">{m.rep}</span>
-              <span className="font-mono font-extrabold text-[#FFA08C]">{m.id}</span>
-              <span className="text-[#dcd2cd] truncate max-w-[220px]">{m.shipper}</span>
+              <span className="font-bold text-ink min-w-[120px]">{m.rep}</span>
+              <span className="font-mono font-extrabold text-accent-ink">{m.id}</span>
+              <span className="text-ink-2 truncate max-w-[220px]">{m.shipper}</span>
               <span className="font-bold" style={{ color }}>{m.issue}</span>
             </div>
           ))}
@@ -83,7 +83,7 @@ export default function TeamReport({ currentUser, now }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button onClick={() => setAnchor(addDays(range.from, -7))} className="btn-dark !px-2.5" title="Previous week"><ChevronLeft size={15} /></button>
-          <span className="text-[15px] font-extrabold text-white min-w-[240px] text-center">{weekLabel(range)}</span>
+          <span className="text-[15px] font-extrabold text-ink min-w-[240px] text-center">{weekLabel(range)}</span>
           <button onClick={() => setAnchor(addDays(range.from, 7))} className="btn-dark !px-2.5" title="Next week"><ChevronRight size={15} /></button>
           <button onClick={() => setAnchor(new Date())} className="btn-dark text-sm">This week</button>
         </div>
@@ -98,25 +98,25 @@ export default function TeamReport({ currentUser, now }) {
       </div>
 
       {error && (
-        <div className="p-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-[#f87171]/60 bg-[rgba(248,113,113,0.1)] text-[#fca5a5]">
+        <div className="p-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-danger/60 bg-[rgba(248,113,113,0.1)] text-danger-ink-2">
           <AlertTriangle size={15} /> {error}
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-[#0d0b0a] border border-[#342b27] text-center">
+      <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-surface border border-line text-center">
         {[
           ['Team target', team.target ? `${round1(team.target)} CBM` : 'Not set'],
           ['Booked', `${round1(team.actual)} CBM`],
           ['Achieved', team.target ? `${Math.round((team.actual / team.target) * 100)}%` : '—'],
         ].map(([label, value]) => (
           <div key={label}>
-            <div className="text-[12px] text-[#b3a59e] uppercase font-bold">{label}</div>
-            <div className="text-[20px] font-extrabold font-mono text-white">{value}</div>
+            <div className="text-[12px] text-ink-3 uppercase font-bold">{label}</div>
+            <div className="text-[20px] font-extrabold font-mono text-ink">{value}</div>
           </div>
         ))}
       </div>
 
-      <div className="scm-table-container overflow-x-auto rounded-xl border border-[#342b27]">
+      <div className="scm-table-container overflow-x-auto rounded-xl border border-line">
         <table className="scm-table">
           <thead>
             <tr>
@@ -126,53 +126,53 @@ export default function TeamReport({ currentUser, now }) {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={11} className="text-center py-10 text-[#b3a59e]">
+              <tr><td colSpan={11} className="text-center py-10 text-ink-3">
                 {loading ? 'Loading…' : (<span className="inline-flex items-center gap-2"><Users size={15} /> No reps yet. Reps appear here after they sign in once.</span>)}
               </td></tr>
             ) : rows.map(r => (
               <tr key={r.rep.id}>
                 <td>
-                  <div className="font-bold text-white">{r.rep.name}</div>
-                  <div className="text-[12px] text-[#b3a59e]">{r.rep.role || r.rep.email}</div>
+                  <div className="font-bold text-ink">{r.rep.name}</div>
+                  <div className="text-[12px] text-ink-3">{r.rep.role || r.rep.email}</div>
                 </td>
                 <TargetCell value={r.target} onSave={(n) => setTarget(r.rep.id, n)} />
-                <td className="font-mono font-bold text-white">
+                <td className="font-mono font-bold text-ink">
                   {r.actual}
-                  {r.missingCbm > 0 && <div className="text-[11.5px] text-amber-300 font-sans">{r.missingCbm} without CBM</div>}
+                  {r.missingCbm > 0 && <div className="text-[11.5px] text-warn font-sans">{r.missingCbm} without CBM</div>}
                 </td>
-                <td className={`font-mono font-extrabold ${r.pct === null ? 'text-[#b3a59e]' : r.pct >= 100 ? 'text-emerald-400' : 'text-[#FFA08C]'}`}>{r.pct === null ? '—' : `${r.pct}%`}</td>
+                <td className={`font-mono font-extrabold ${r.pct === null ? 'text-ink-3' : r.pct >= 100 ? 'text-good' : 'text-accent-ink'}`}>{r.pct === null ? '—' : `${r.pct}%`}</td>
                 <td className="font-mono">{r.bookings}</td>
                 <td className="font-mono">{r.received}</td>
                 <td className="font-mono">{r.replied}</td>
                 <td className="font-mono">{r.avgTat === null ? '—' : `${r.avgTat}m`}</td>
                 <td className="font-mono">{r.lost}</td>
-                <td className={`font-mono ${r.unrepliedNow ? 'text-[#f87171] font-bold' : ''}`}>{r.unrepliedNow}</td>
-                <td className={`font-mono ${r.followUpsDue ? 'text-[#c084fc] font-bold' : ''}`}>{r.followUpsDue}</td>
+                <td className={`font-mono ${r.unrepliedNow ? 'text-danger-ink font-bold' : ''}`}>{r.unrepliedNow}</td>
+                <td className={`font-mono ${r.followUpsDue ? 'text-purple-ink font-bold' : ''}`}>{r.followUpsDue}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="text-[12.5px] text-[#b3a59e]">
+      <div className="text-[12.5px] text-ink-3">
         Booked CBM counts confirmed bookings by the day the customer confirmed. Click a target to change it; it applies from this week until you change it again. You can view the team's data here but not edit it.
       </div>
 
-      <ItemList title="Missed this week" items={rows.flatMap(r => r.missed)} empty="Nothing missed this week." color="#f87171" />
-      <ItemList title="Outstanding right now" items={rows.flatMap(r => r.outstanding)} empty="Nothing outstanding." color="#c084fc" />
+      <ItemList title="Missed this week" items={rows.flatMap(r => r.missed)} empty="Nothing missed this week." color="rgb(var(--c-danger-ink))" />
+      <ItemList title="Outstanding right now" items={rows.flatMap(r => r.outstanding)} empty="Nothing outstanding." color="rgb(var(--c-purple-ink))" />
 
-      <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-[#342b27] bg-[#110e0d] text-[14px] font-extrabold text-white uppercase tracking-wider">Next week plan</div>
-        <div className="divide-y divide-[#2a231f]">
+      <div className="rounded-xl border border-line bg-surface overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-line bg-panel-2 text-[14px] font-extrabold text-ink uppercase tracking-wider">Next week plan</div>
+        <div className="divide-y divide-line-soft">
           {rows.map(r => (
             <div key={r.rep.id} className="px-4 py-2 text-sm flex flex-wrap items-center gap-x-5 gap-y-0.5">
-              <span className="font-bold text-white min-w-[120px]">{r.rep.name}</span>
-              <span className="text-[#dcd2cd]">Target: <b className="text-white font-mono">{r.nextTarget ?? 'not set'}{r.nextTarget ? ' CBM' : ''}</b></span>
-              <span className="text-[#dcd2cd]">Open quotes: <b className="text-white font-mono">{r.pipelineCount}</b> ({r.pipelineCbm} CBM)</span>
-              <span className="text-[#dcd2cd]">Expiring next week: <b className="text-amber-300 font-mono">{r.expiringNext.length}</b></span>
-              <span className="text-[#dcd2cd]">Follow-ups to clear: <b className="text-[#c084fc] font-mono">{r.followUpsDue}</b></span>
+              <span className="font-bold text-ink min-w-[120px]">{r.rep.name}</span>
+              <span className="text-ink-2">Target: <b className="text-ink font-mono">{r.nextTarget ?? 'not set'}{r.nextTarget ? ' CBM' : ''}</b></span>
+              <span className="text-ink-2">Open quotes: <b className="text-ink font-mono">{r.pipelineCount}</b> ({r.pipelineCbm} CBM)</span>
+              <span className="text-ink-2">Expiring next week: <b className="text-warn font-mono">{r.expiringNext.length}</b></span>
+              <span className="text-ink-2">Follow-ups to clear: <b className="text-purple-ink font-mono">{r.followUpsDue}</b></span>
             </div>
           ))}
-          {rows.length === 0 && <div className="px-4 py-3 text-sm text-[#b3a59e]">No reps yet.</div>}
+          {rows.length === 0 && <div className="px-4 py-3 text-sm text-ink-3">No reps yet.</div>}
         </div>
       </div>
     </div>

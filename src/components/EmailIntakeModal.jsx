@@ -33,7 +33,7 @@ const MATCH_LABEL = {
 function Field({ label, missing, children, className = '' }) {
   return (
     <label className={`block ${className}`}>
-      <span className={`text-[12.5px] font-extrabold block mb-1 ${missing ? 'text-amber-300' : 'text-[#dcd2cd]'}`}>
+      <span className={`text-[12.5px] font-extrabold block mb-1 ${missing ? 'text-warn' : 'text-ink-2'}`}>
         {label}{missing && ' *'}
       </span>
       {children}
@@ -304,11 +304,11 @@ export default function EmailIntakeModal({
   const renderMatchPicker = (statuses) => {
     const options = statuses ? matchOptions.filter(i => statuses.includes(i.status)) : matchOptions;
     return (
-      <div className="p-3 rounded-xl bg-[#120f0e] border border-[#342b27] space-y-1.5">
+      <div className="p-3 rounded-xl bg-panel border border-line space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[12.5px] font-extrabold text-[#dcd2cd] uppercase tracking-wider">Belongs to inquiry</span>
+          <span className="text-[12.5px] font-extrabold text-ink-2 uppercase tracking-wider">Belongs to inquiry</span>
           {result && (
-            <span className={`text-[12.5px] font-bold ${['tag', 'strong'].includes(result.matchConfidence) && matchId === result.matchedInquiryId ? 'text-emerald-400' : 'text-amber-300'}`}>
+            <span className={`text-[12.5px] font-bold ${['tag', 'strong'].includes(result.matchConfidence) && matchId === result.matchedInquiryId ? 'text-good' : 'text-warn'}`}>
               {MATCH_LABEL[result.matchConfidence]}
             </span>
           )}
@@ -329,7 +329,7 @@ export default function EmailIntakeModal({
     <Field label={label}>
       <textarea value={signedReply} onChange={(e) => setReply(e.target.value)} rows={9} className="scm-input w-full font-mono leading-relaxed" />
       {findPlaceholders(signedReply).length > 0 && (
-        <span className="text-[12.5px] text-amber-300 font-bold block mt-1">
+        <span className="text-[12.5px] text-warn font-bold block mt-1">
           Replace {findPlaceholders(signedReply).join(', ')} with the real details. Copying is blocked until you do.
         </span>
       )}
@@ -342,15 +342,15 @@ export default function EmailIntakeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto" onPaste={stage === 'input' ? handlePaste : undefined}>
-      <div className="relative w-full max-w-4xl max-h-[94vh] flex flex-col bg-[#0d0b0a] border border-[#FFA08C]/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(255,160,140,0.3)]">
+      <div className="relative w-full max-w-4xl max-h-[94vh] flex flex-col bg-surface border border-accent/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(255,160,140,0.3)]">
 
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-[#FFA08C]" />
-            <span className="text-[15px] font-extrabold text-white uppercase tracking-wider">Paste Email</span>
-            <span className="text-sm text-[#dcd2cd] ml-1">New inquiry, customer reply, nomination or decline: paste any of them</span>
+            <Sparkles size={16} className="text-accent-ink" />
+            <span className="text-[15px] font-extrabold text-ink uppercase tracking-wider">Paste Email</span>
+            <span className="text-sm text-ink-2 ml-1">New inquiry, customer reply, nomination or decline: paste any of them</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full bg-[#181412] hover:bg-[rgba(255,160,140,0.2)] text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-full bg-raised hover:bg-[rgba(255,160,140,0.2)] text-ink-2 hover:text-ink">
             <X size={18} />
           </button>
         </div>
@@ -360,7 +360,7 @@ export default function EmailIntakeModal({
           {stage === 'input' && (
             <>
               {error && (
-                <div className="p-3 rounded-xl border border-[#f87171]/60 bg-[rgba(248,113,113,0.1)] text-sm font-bold text-[#fca5a5] flex items-start gap-2">
+                <div className="p-3 rounded-xl border border-danger/60 bg-[rgba(248,113,113,0.1)] text-sm font-bold text-danger-ink-2 flex items-start gap-2">
                   <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                   <span>{error.message}</span>
                 </div>
@@ -381,10 +381,10 @@ export default function EmailIntakeModal({
                     <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => attach(e.target.files?.[0])} />
                   </label>
                   {file && (
-                    <span className="flex items-center gap-2 text-sm text-white font-semibold min-w-0">
-                      {previewUrl ? <img src={previewUrl} alt="" className="h-9 rounded border border-[#3d332e]" /> : <FileText size={16} className="text-[#FFA08C]" />}
+                    <span className="flex items-center gap-2 text-sm text-ink font-semibold min-w-0">
+                      {previewUrl ? <img src={previewUrl} alt="" className="h-9 rounded border border-line-3" /> : <FileText size={16} className="text-accent-ink" />}
                       <span className="truncate max-w-[220px]">{file.name || 'Pasted screenshot'}</span>
-                      <button onClick={() => { setFile(null); setPreviewUrl(null); }} className="text-[#b3a59e] hover:text-white"><X size={14} /></button>
+                      <button onClick={() => { setFile(null); setPreviewUrl(null); }} className="text-ink-3 hover:text-ink"><X size={14} /></button>
                     </span>
                   )}
                 </div>
@@ -410,34 +410,34 @@ export default function EmailIntakeModal({
 
           {stage === 'working' && (
             <div className="py-16 text-center space-y-3">
-              <div className="w-10 h-10 rounded-full border-2 border-[#FFA08C]/20 border-t-[#FFA08C] animate-spin mx-auto" />
-              <div className="text-[15px] font-bold text-white">Reading the email…</div>
-              <div className="text-sm text-[#dcd2cd]">Usually takes 5–15 seconds.</div>
+              <div className="w-10 h-10 rounded-full border-2 border-accent/20 border-t-[#FFA08C] animate-spin mx-auto" />
+              <div className="text-[15px] font-bold text-ink">Reading the email…</div>
+              <div className="text-sm text-ink-2">Usually takes 5–15 seconds.</div>
             </div>
           )}
 
           {stage === 'result' && (
             <>
               {fallbackNote && (
-                <div className="p-3 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)] text-sm font-bold text-amber-300 flex items-start gap-2">
+                <div className="p-3 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)] text-sm font-bold text-warn flex items-start gap-2">
                   <AlertTriangle size={16} className="shrink-0 mt-0.5" /> <span>{fallbackNote}</span>
                 </div>
               )}
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-[12.5px] font-extrabold text-[#dcd2cd] uppercase tracking-wider">This email is</span>
-                  <select value={kind} onChange={(e) => setKind(e.target.value)} disabled={!result} className="scm-select font-extrabold text-[#FFA08C]">
+                  <span className="text-[12.5px] font-extrabold text-ink-2 uppercase tracking-wider">This email is</span>
+                  <select value={kind} onChange={(e) => setKind(e.target.value)} disabled={!result} className="scm-select font-extrabold text-accent-ink">
                     {Object.entries(KINDS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
-                {result?.summary && <span className="text-sm text-white font-semibold">{result.summary}</span>}
+                {result?.summary && <span className="text-sm text-ink font-semibold">{result.summary}</span>}
               </div>
 
               {kind === 'new_inquiry' && draft && (
                 <div className="space-y-3">
                   <div className={`p-3 rounded-xl border-2 flex flex-wrap items-center gap-3 ${draft.salesMemberId ? 'border-emerald-500/50 bg-[rgba(16,185,129,0.06)]' : 'border-amber-400/60 bg-[rgba(251,191,36,0.08)]'}`}>
-                    <span className="text-sm font-extrabold text-white">
+                    <span className="text-sm font-extrabold text-ink">
                       Register {drafts.length > 1 ? `these ${drafts.length} inquiries` : 'this inquiry'} under sales member:
                     </span>
                     <div className="w-64">
@@ -450,11 +450,11 @@ export default function EmailIntakeModal({
                           return added;
                         } : undefined} />
                     </div>
-                    {!draft.salesMemberId && <span className="text-[12.5px] text-amber-300 font-bold">Not assigned yet</span>}
+                    {!draft.salesMemberId && <span className="text-[12.5px] text-warn font-bold">Not assigned yet</span>}
                   </div>
                   {result?.multipleHint && drafts.length === 1 && (
-                    <div className="p-3 rounded-xl border-2 border-[#f87171]/70 bg-[rgba(248,113,113,0.1)] text-sm flex flex-wrap items-center justify-between gap-3">
-                      <span className="text-[#fca5a5] font-bold">
+                    <div className="p-3 rounded-xl border-2 border-danger/70 bg-[rgba(248,113,113,0.1)] text-sm flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-danger-ink-2 font-bold">
                         <AlertTriangle size={15} className="inline mr-1.5 -mt-0.5" />
                         This email may contain more than one shipment. {result.multipleHint} Read it again before saving; if there is another shipment, add it.
                       </span>
@@ -462,11 +462,11 @@ export default function EmailIntakeModal({
                     </div>
                   )}
                   {drafts.length > 1 && (
-                    <div className="p-2.5 rounded-xl border border-[#FFA08C]/50 bg-[rgba(255,160,140,0.06)] space-y-2">
-                      <div className="text-sm font-bold text-white">This email has <span className="text-[#FFA08C]">{drafts.length} separate shipments</span>. Check each one; they'll be saved as {drafts.length} inquiries.</div>
+                    <div className="p-2.5 rounded-xl border border-accent/50 bg-[rgba(255,160,140,0.06)] space-y-2">
+                      <div className="text-sm font-bold text-ink">This email has <span className="text-accent-ink">{drafts.length} separate shipments</span>. Check each one; they'll be saved as {drafts.length} inquiries.</div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {drafts.map((d, n) => (
-                          <span key={d.id} className={`flex items-center rounded-full border text-[13px] font-bold ${n === active ? 'bg-[#FFA08C] text-[#0d0b0a] border-[#FFA08C]' : 'border-[#3d332e] text-[#dcd2cd]'}`}>
+                          <span key={d.id} className={`flex items-center rounded-full border text-[13px] font-bold ${n === active ? 'bg-accent text-on-accent border-accent' : 'border-line-3 text-ink-2'}`}>
                             <button onClick={() => setActive(n)} className="pl-3 pr-2 py-1">
                               Shipment {n + 1}: {d.polCode || d.pol || '?'} ➔ {d.podCode || d.pod || '?'}{Number(d.volumeCbm) > 0 ? ` · ${d.volumeCbm} CBM` : ''}
                             </button>
@@ -478,7 +478,7 @@ export default function EmailIntakeModal({
                     </div>
                   )}
                   {dup && (
-                    <div className="p-3 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)] text-sm text-amber-300 font-bold flex items-center justify-between gap-3">
+                    <div className="p-3 rounded-xl border border-amber-400/60 bg-[rgba(251,191,36,0.08)] text-sm text-warn font-bold flex items-center justify-between gap-3">
                       <span>This looks like a duplicate of {dup.id} ({dup.shipperName}, logged {new Date(dup.receivedAt).toLocaleDateString('en-GB')}).</span>
                       <button onClick={() => { setKind('customer_reply'); setMatchId(dup.id); }} className="btn-dark text-sm shrink-0">Treat as reply to {dup.id}</button>
                     </div>
@@ -492,7 +492,7 @@ export default function EmailIntakeModal({
                     <Field label="Incoterms">
                       <input value={draft.incoterms || ''} onChange={set('incoterms')} className="scm-input w-full" />
                       {result?.shipment?.incotermsAssumed && draft.incoterms === result.shipment.incoterms && (
-                        <span className="text-[12px] text-amber-300 font-bold block mt-0.5">
+                        <span className="text-[12px] text-warn font-bold block mt-0.5">
                           Assumed {draft.incoterms}: {draft.incoterms === 'EXW' ? 'pickup address given' : 'no pickup address'}, no terms in the email
                         </span>
                       )}
@@ -500,7 +500,7 @@ export default function EmailIntakeModal({
                     <Field label="Port of loading" missing={missing.has('origin port') || !draft.pol}>
                       <input value={draft.pol || ''} list="port-choices" onChange={(e) => setDraft(d => ({ ...d, pol: e.target.value, polCode: portCodeFor(e.target.value), polSuggested: '' }))} className="scm-input w-full" />
                       {draft.polSuggested && (
-                        <span className="text-[12px] text-amber-300 font-bold block mt-0.5">Suggested from the pickup place ({draft.polSuggested}). Check before quoting.</span>
+                        <span className="text-[12px] text-warn font-bold block mt-0.5">Suggested from the pickup place ({draft.polSuggested}). Check before quoting.</span>
                       )}
                     </Field>
                     <Field label="Port of discharge" missing={missing.has('destination port') || !draft.pod}>
@@ -516,16 +516,16 @@ export default function EmailIntakeModal({
                         const calc = cbmFromDimensions(draft.dimensions, draft.packages);
                         const shown = Number(draft.volumeCbm) || 0;
                         if (result?.shipment?.volumeCbmCalculated && shown === calc && calc > 0) {
-                          return <span className="text-[12px] text-amber-300 font-bold block mt-0.5">Calculated from dimensions (not stated in the email)</span>;
+                          return <span className="text-[12px] text-warn font-bold block mt-0.5">Calculated from dimensions (not stated in the email)</span>;
                         }
                         if (calc > 0 && Math.abs(calc - shown) > 0.001) {
                           return (
-                            <button type="button" onClick={() => setDraft(d => ({ ...d, volumeCbm: calc }))} className="text-[12px] text-[#FFA08C] hover:text-white font-bold block mt-0.5 underline">
+                            <button type="button" onClick={() => setDraft(d => ({ ...d, volumeCbm: calc }))} className="text-[12px] text-accent-ink hover:text-ink font-bold block mt-0.5 underline">
                               {shown > 0 ? `Dimensions give ${calc} CBM. Use that?` : `Calculate from dimensions: ${calc} CBM`}
                             </button>
                           );
                         }
-                        if (!(shown > 0)) return <span className="text-[12px] text-amber-300 font-bold block mt-0.5">Not in the email: enter it, or add dimensions to calculate it</span>;
+                        if (!(shown > 0)) return <span className="text-[12px] text-warn font-bold block mt-0.5">Not in the email: enter it, or add dimensions to calculate it</span>;
                         return null;
                       })()}
                     </Field>
@@ -546,7 +546,7 @@ export default function EmailIntakeModal({
                   </div>
                   {result?.missingDetails?.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-sm font-bold text-amber-300">
+                      <div className="text-sm font-bold text-warn">
                         Missing from the email: {result.missingDetails.join(', ')}. Here's a ready request for the customer:
                       </div>
                       {renderReplyBox('Request for details')}
@@ -559,13 +559,13 @@ export default function EmailIntakeModal({
                 <div className="space-y-3">
                   {renderMatchPicker()}
                   {result?.customerReply?.points?.length > 0 && (
-                    <div className="p-3 rounded-xl bg-[#120f0e] border border-[#342b27]">
-                      <div className="text-[12.5px] font-extrabold text-[#dcd2cd] uppercase tracking-wider mb-1">The customer says</div>
-                      <ul className="list-disc pl-5 text-sm text-white space-y-0.5">
+                    <div className="p-3 rounded-xl bg-panel border border-line">
+                      <div className="text-[12.5px] font-extrabold text-ink-2 uppercase tracking-wider mb-1">The customer says</div>
+                      <ul className="list-disc pl-5 text-sm text-ink space-y-0.5">
                         {result.customerReply.points.map((p, i) => <li key={i}>{p}</li>)}
                       </ul>
                       {result.customerReply.requestedRate && (
-                        <div className="text-sm mt-1.5"><b className="text-[#FFA08C]">Asking for:</b> <span className="font-mono font-bold text-white">{result.customerReply.requestedRate}</span></div>
+                        <div className="text-sm mt-1.5"><b className="text-accent-ink">Asking for:</b> <span className="font-mono font-bold text-ink">{result.customerReply.requestedRate}</span></div>
                       )}
                     </div>
                   )}
@@ -585,7 +585,7 @@ export default function EmailIntakeModal({
                       ['ETD', result?.nomination?.etd],
                       ['Confirmed by', result?.nomination?.confirmedBy || result?.email?.fromName],
                     ].map(([k, v]) => (
-                      <div key={k}><span className="text-[#b3a59e] block text-[12.5px] font-bold">{k}</span><span className="text-white font-semibold">{v || '—'}</span></div>
+                      <div key={k}><span className="text-ink-3 block text-[12.5px] font-bold">{k}</span><span className="text-ink font-semibold">{v || '—'}</span></div>
                     ))}
                   </div>
                   {renderReplyBox('Acknowledgement to the customer')}
@@ -609,9 +609,9 @@ export default function EmailIntakeModal({
 
               {kind === 'not_freight' && (
                 <div className="py-10 text-center space-y-2">
-                  <Ban size={24} className="text-[#f87171] mx-auto" />
-                  <div className="text-[15px] font-extrabold text-white">This doesn't look like a customer freight email</div>
-                  <div className="text-sm text-[#dcd2cd]">Nothing will be logged. If that's wrong, change "This email is" above.</div>
+                  <Ban size={24} className="text-danger-ink mx-auto" />
+                  <div className="text-[15px] font-extrabold text-ink">This doesn't look like a customer freight email</div>
+                  <div className="text-sm text-ink-2">Nothing will be logged. If that's wrong, change "This email is" above.</div>
                 </div>
               )}
             </>
@@ -619,7 +619,7 @@ export default function EmailIntakeModal({
         </div>
 
         {stage === 'result' && (
-          <div className="px-5 py-3 border-t border-[#342b27] bg-[#110e0d] flex flex-wrap items-center justify-between gap-2">
+          <div className="px-5 py-3 border-t border-line bg-panel-2 flex flex-wrap items-center justify-between gap-2">
             <button onClick={() => setStage('input')} className="btn-dark">
               <RefreshCw size={13} />
               <span>Back</span>

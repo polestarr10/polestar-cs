@@ -44,29 +44,29 @@ export default function FollowUpModal({ isOpen, onClose, inquiry, onMarkSent, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl max-h-[94vh] flex flex-col bg-[#0d0b0a] border border-[#c084fc]/60 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(192,132,252,0.25)]">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+      <div className="relative w-full max-w-2xl max-h-[94vh] flex flex-col bg-surface border border-purple/60 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(192,132,252,0.25)]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Repeat size={16} className="text-[#c084fc]" />
-            <span className="text-[15px] font-extrabold text-white uppercase tracking-wider shrink-0">
-              Follow-up {number} of {MAX_FOLLOW_UPS}: <span className="font-mono text-[#FFA08C]">{inquiry.id}</span>
+            <Repeat size={16} className="text-purple-ink" />
+            <span className="text-[15px] font-extrabold text-ink uppercase tracking-wider shrink-0">
+              Follow-up {number} of {MAX_FOLLOW_UPS}: <span className="font-mono text-accent-ink">{inquiry.id}</span>
             </span>
-            <span className="text-sm text-[#dcd2cd] font-semibold ml-2 truncate">{inquiry.shipperName}</span>
+            <span className="text-sm text-ink-2 font-semibold ml-2 truncate">{inquiry.shipperName}</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full bg-[#181412] hover:bg-[rgba(255,160,140,0.2)] text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-full bg-raised hover:bg-[rgba(255,160,140,0.2)] text-ink-2 hover:text-ink">
             <X size={18} />
           </button>
         </div>
 
         <div className="p-5 space-y-3 overflow-y-auto">
           {fu && (
-            <div className="text-sm text-[#dcd2cd]">
-              No word from the customer for <span className="font-bold text-white">{formatQuiet(fu.hoursQuiet)}</span>
+            <div className="text-sm text-ink-2">
+              No word from the customer for <span className="font-bold text-ink">{formatQuiet(fu.hoursQuiet)}</span>
               {fu.sent > 0 ? `, ${fu.sent} follow-up${fu.sent === 1 ? '' : 's'} already sent.` : ' since our reply.'}
             </div>
           )}
-          <div className="text-sm text-[#dcd2cd]">
-            To: <span className="font-mono font-bold text-white">{to || 'no customer email on file'}</span>
+          <div className="text-sm text-ink-2">
+            To: <span className="font-mono font-bold text-ink">{to || 'no customer email on file'}</span>
           </div>
           <input value={subject} onChange={(e) => setSubject(e.target.value)} className="scm-input w-full font-bold" />
           <textarea
@@ -77,13 +77,13 @@ export default function FollowUpModal({ isOpen, onClose, inquiry, onMarkSent, on
           />
         </div>
 
-        <div className="px-5 py-3 border-t border-[#342b27] bg-[#110e0d] flex flex-wrap items-center justify-between gap-2">
+        <div className="px-5 py-3 border-t border-line bg-panel-2 flex flex-wrap items-center justify-between gap-2">
           {fu?.stage === 'cold' ? (
-            <button onClick={() => { onCloseLost(inquiry); onClose(); }} className="btn-dark text-[#f87171]">
+            <button onClick={() => { onCloseLost(inquiry); onClose(); }} className="btn-dark text-danger-ink">
               <XCircle size={13} />
               <span>Close as lost (no response)</span>
             </button>
-          ) : <span className="text-[12.5px] text-[#b3a59e]">Paste it as a Reply on the customer's email, then mark it sent.</span>}
+          ) : <span className="text-[12.5px] text-ink-3">Paste it as a Reply on the customer's email, then mark it sent.</span>}
           <div className="flex items-center gap-2">
             <button onClick={handleCopy} className="btn-coral-outline">
               {copied ? <Check size={13} /> : <Copy size={13} />}

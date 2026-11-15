@@ -62,59 +62,59 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-[#0d0b0a] border border-emerald-500/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.25)]">
+      <div className="relative w-full max-w-2xl bg-surface border border-emerald-500/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.25)]">
 
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
           <div className="flex items-center gap-2">
-            <FileSpreadsheet size={16} className="text-emerald-400" />
-            <span className="text-[15px] font-extrabold text-white uppercase tracking-wider">Export inquiry report</span>
+            <FileSpreadsheet size={16} className="text-good" />
+            <span className="text-[15px] font-extrabold text-ink uppercase tracking-wider">Export inquiry report</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full bg-[#181412] hover:bg-emerald-950 text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-full bg-raised hover:bg-good-tint text-ink-2 hover:text-ink">
             <X size={18} />
           </button>
         </div>
 
         <div className="p-5 space-y-4 text-sm">
-          <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden w-fit">
+          <div className="flex items-center rounded-full border border-line-3 overflow-hidden w-fit">
             {[['today', 'Today'], ['week', 'This week'], ['all', 'All']].map(([k, label]) => (
               <button
                 key={k}
                 onClick={() => setPeriod(k)}
-                className={`px-4 py-1.5 font-extrabold ${period === k ? 'bg-emerald-500 text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}
+                className={`px-4 py-1.5 font-extrabold ${period === k ? 'bg-emerald-500 text-on-accent' : 'text-ink-2 hover:text-ink'}`}
               >
                 {label}
               </button>
             ))}
           </div>
 
-          <div className="grid grid-cols-4 gap-2 p-3 rounded-xl bg-[#120f0e] border border-[#3a302b] text-center">
+          <div className="grid grid-cols-4 gap-2 p-3 rounded-xl bg-panel border border-line-2 text-center">
             {[
-              ['New inquiries', m.total, 'text-white'],
-              ['Quotes sent', m.quotesSent, 'text-emerald-400'],
-              ['Bookings', m.won, 'text-emerald-300'],
-              ['Waiting on us now', m.awaiting, m.awaiting ? 'text-[#FFA08C]' : 'text-white'],
+              ['New inquiries', m.total, 'text-ink'],
+              ['Quotes sent', m.quotesSent, 'text-good'],
+              ['Bookings', m.won, 'text-good-2'],
+              ['Waiting on us now', m.awaiting, m.awaiting ? 'text-accent-ink' : 'text-ink'],
             ].map(([label, value, color]) => (
               <div key={label}>
-                <div className="text-[12px] text-[#b3a59e] uppercase font-bold">{label}</div>
+                <div className="text-[12px] text-ink-3 uppercase font-bold">{label}</div>
                 <div className={`text-[20px] font-extrabold font-mono ${color}`}>{value}</div>
               </div>
             ))}
           </div>
-          <div className="text-[12.5px] text-[#b3a59e]">
+          <div className="text-[12.5px] text-ink-3">
             {range.label} · counts what you did in this period (quotes, follow-ups, bookings), plus what is waiting right now{m.revised ? ` · ${m.revised} revised quote${m.revised === 1 ? '' : 's'}` : ''}{m.won ? ` · ${m.bookedCbm} CBM booked` : ''}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <label className="block">
-              <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Prepared by</span>
+              <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">Prepared by</span>
               <input value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} className="scm-input w-full" />
             </label>
             <label className="block">
-              <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">For (optional)</span>
+              <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">For (optional)</span>
               <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. VP Customer Service" className="scm-input w-full" />
             </label>
             <label className="block">
-              <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">Branch (optional)</span>
+              <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">Branch (optional)</span>
               <input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="e.g. Mundra" className="scm-input w-full" />
             </label>
           </div>
@@ -127,16 +127,16 @@ export default function ExportModal({ isOpen, onClose, inquiries, currentUser })
               <button
                 key={key}
                 onClick={() => setExportFormat(key)}
-                className={`p-3 rounded-xl border text-left transition-all ${exportFormat === key ? 'bg-emerald-950/60 border-emerald-500 text-white' : 'bg-[#120f0e] border-[#3a302b] text-[#dcd2cd]'}`}
+                className={`p-3 rounded-xl border text-left transition-all ${exportFormat === key ? 'bg-good-tint/60 border-emerald-500 text-ink' : 'bg-panel border-line-2 text-ink-2'}`}
               >
-                <div className="font-bold flex items-center gap-1.5"><Icon size={14} className="text-emerald-400" />{title}</div>
-                <div className="text-[12.5px] text-[#b3a59e] mt-0.5">{sub}</div>
+                <div className="font-bold flex items-center gap-1.5"><Icon size={14} className="text-good" />{title}</div>
+                <div className="text-[12.5px] text-ink-3 mt-0.5">{sub}</div>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3 border-t border-[#342b27] bg-[#110e0d]">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-line bg-panel-2">
           <button onClick={onClose} className="btn-dark">Cancel</button>
           <button onClick={handleExport} className="btn-green">
             {done ? <Check size={14} /> : <Download size={14} />}

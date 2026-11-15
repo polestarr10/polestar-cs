@@ -12,8 +12,8 @@ function localDateTimeValue(iso) {
 function Field({ label, required, children, className = '' }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-[12.5px] font-extrabold text-[#dcd2cd] block mb-1">
-        {label}{required && <span className="text-amber-300"> *</span>}
+      <span className="text-[12.5px] font-extrabold text-ink-2 block mb-1">
+        {label}{required && <span className="text-warn"> *</span>}
       </span>
       {children}
     </label>
@@ -96,23 +96,23 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto">
       <form
         onSubmit={handleSubmit}
-        className="relative w-full max-w-2xl bg-[#0d0b0a] border border-emerald-500/60 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.25)]"
+        className="relative w-full max-w-2xl bg-surface border border-emerald-500/60 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.25)]"
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={17} className="text-emerald-400" />
-            <span className="text-[15px] font-extrabold text-white uppercase tracking-wider">
-              Customer confirmation: <span className="font-mono text-[#FFA08C]">{inquiry.id}</span>
+            <CheckCircle2 size={17} className="text-good" />
+            <span className="text-[15px] font-extrabold text-ink uppercase tracking-wider">
+              Customer confirmation: <span className="font-mono text-accent-ink">{inquiry.id}</span>
             </span>
           </div>
-          <button type="button" onClick={onClose} className="p-1 rounded-full bg-[#181412] hover:bg-[rgba(255,160,140,0.2)] text-slate-400 hover:text-white">
+          <button type="button" onClick={onClose} className="p-1 rounded-full bg-raised hover:bg-[rgba(255,160,140,0.2)] text-ink-2 hover:text-ink">
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-5 py-2.5 bg-[#120f0e] border-b border-[#342b27] text-sm flex items-center justify-between gap-3">
-          <span className="font-bold text-white truncate">{inquiry.shipperName}</span>
-          <span className="font-mono text-[#FFA08C] font-semibold shrink-0">{inquiry.polCode || inquiry.pol} ➔ {inquiry.podCode || inquiry.pod}</span>
+        <div className="px-5 py-2.5 bg-panel border-b border-line text-sm flex items-center justify-between gap-3">
+          <span className="font-bold text-ink truncate">{inquiry.shipperName}</span>
+          <span className="font-mono text-accent-ink font-semibold shrink-0">{inquiry.polCode || inquiry.pol} ➔ {inquiry.podCode || inquiry.pod}</span>
         </div>
 
         <div className="p-5 grid grid-cols-2 gap-3">
@@ -132,7 +132,7 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
             <input type="number" min="0" step="0.01" value={f.volumeCbm} onChange={set('volumeCbm')} className="scm-input w-full font-mono font-bold" placeholder="Counts toward the weekly target" />
           </Field>
           <Field label="Final rate" required>
-            <input value={f.finalRate} onChange={set('finalRate')} className="scm-input w-full font-mono font-bold text-emerald-400" />
+            <input value={f.finalRate} onChange={set('finalRate')} className="scm-input w-full font-mono font-bold text-good" />
           </Field>
           <Field label="Carrier">
             <input value={f.carrier} onChange={set('carrier')} className="scm-input w-full" />
@@ -148,12 +148,12 @@ export default function ConfirmBookingModal({ isOpen, onClose, inquiry, onConfir
           </Field>
         </div>
 
-        <div className="px-5 py-3 border-t border-[#342b27] bg-[#110e0d] flex items-center justify-between gap-3">
+        <div className="px-5 py-3 border-t border-line bg-panel-2 flex items-center justify-between gap-3">
           <span className="text-sm">
             {valid ? (
-              <span className="text-[#dcd2cd]">Saving marks this inquiry Booking Confirmed and adds it to the nomination sheet.</span>
+              <span className="text-ink-2">Saving marks this inquiry Booking Confirmed and adds it to the nomination sheet.</span>
             ) : (
-              <span className="flex items-center gap-1.5 text-amber-300 font-bold"><AlertTriangle size={15} /> Confirmation date, equipment, volume (CBM) and final rate are required.</span>
+              <span className="flex items-center gap-1.5 text-warn font-bold"><AlertTriangle size={15} /> Confirmation date, equipment, volume (CBM) and final rate are required.</span>
             )}
           </span>
           <div className="flex items-center gap-2 shrink-0">

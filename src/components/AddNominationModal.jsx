@@ -24,20 +24,20 @@ export default function AddNominationModal({ isOpen, onClose, inquiries, onConve
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-[#0d0b0a] border border-emerald-500/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#342b27] bg-[#110e0d]">
+      <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-surface border border-emerald-500/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line bg-panel-2">
           <div>
-            <div className="text-[15px] font-extrabold text-white uppercase tracking-wider">Add nomination</div>
-            <div className="text-sm text-[#dcd2cd]">Pick the inquiry the customer confirmed. Quoted inquiries are listed first.</div>
+            <div className="text-[15px] font-extrabold text-ink uppercase tracking-wider">Add nomination</div>
+            <div className="text-sm text-ink-2">Pick the inquiry the customer confirmed. Quoted inquiries are listed first.</div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full bg-[#181412] hover:bg-[rgba(255,160,140,0.2)] text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-full bg-raised hover:bg-[rgba(255,160,140,0.2)] text-ink-2 hover:text-ink">
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-[#342b27] flex items-center justify-between gap-3">
+        <div className="px-5 py-3 border-b border-line flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b3a59e]" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search shipper, ref, port, commodity…" className="scm-input scm-input-icon w-full" />
           </div>
           {onPasteEmail && (
@@ -50,34 +50,34 @@ export default function AddNominationModal({ isOpen, onClose, inquiries, onConve
 
         <div className="flex-1 overflow-y-auto">
           {candidates.length === 0 ? (
-            <div className="py-14 text-center text-[#dcd2cd]">
+            <div className="py-14 text-center text-ink-2">
               {search ? 'No open inquiries match your search.' : 'No open inquiries to convert. Every inquiry is already confirmed or closed.'}
             </div>
           ) : candidates.map(inq => {
             const open = expanded === inq.id;
             const last = lastActivity(inq);
             return (
-              <div key={inq.id} className="border-b border-[#2a231f]">
-                <div className="flex items-center gap-3 px-5 py-3 hover:bg-[#15110f]">
-                  <button onClick={() => setExpanded(open ? null : inq.id)} className="text-[#b3a59e] hover:text-white" title="Show history">
+              <div key={inq.id} className="border-b border-line-soft">
+                <div className="flex items-center gap-3 px-5 py-3 hover:bg-panel-3">
+                  <button onClick={() => setExpanded(open ? null : inq.id)} className="text-ink-3 hover:text-ink" title="Show history">
                     {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </button>
                   <div className="flex-1 min-w-0 grid grid-cols-12 gap-3 items-center">
                     <div className="col-span-3 min-w-0">
-                      <div className="font-mono font-extrabold text-[#FFA08C] text-sm">{inq.id}</div>
-                      <div className="font-semibold text-white truncate" title={inq.shipperName}>{inq.shipperName}</div>
+                      <div className="font-mono font-extrabold text-accent-ink text-sm">{inq.id}</div>
+                      <div className="font-semibold text-ink truncate" title={inq.shipperName}>{inq.shipperName}</div>
                     </div>
                     <div className="col-span-3 min-w-0 text-sm">
-                      <div className="font-mono font-bold text-white">{inq.polCode || inq.pol} ➔ {inq.podCode || inq.pod}</div>
-                      <div className="text-[#dcd2cd] truncate">{inq.containerType} · {inq.commodity}</div>
+                      <div className="font-mono font-bold text-ink">{inq.polCode || inq.pol} ➔ {inq.podCode || inq.pod}</div>
+                      <div className="text-ink-2 truncate">{inq.containerType} · {inq.commodity}</div>
                     </div>
                     <div className="col-span-2 text-sm">
-                      <div className="font-mono font-bold text-emerald-400">{inq.quotedRate || <span className="text-[#948680] font-sans font-semibold">Not quoted</span>}</div>
-                      <div className="text-[#b3a59e]">received {when(inq.receivedAt)}</div>
+                      <div className="font-mono font-bold text-good">{inq.quotedRate || <span className="text-ink-3b font-sans font-semibold">Not quoted</span>}</div>
+                      <div className="text-ink-3">received {when(inq.receivedAt)}</div>
                     </div>
                     <div className="col-span-4 min-w-0 text-sm">
                       <StatusBadge status={inq.status} allowChange={false} />
-                      <div className="text-[#dcd2cd] truncate mt-0.5" title={last.action}>{when(last.at)} · {last.action}</div>
+                      <div className="text-ink-2 truncate mt-0.5" title={last.action}>{when(last.at)} · {last.action}</div>
                     </div>
                   </div>
                   <button onClick={() => onConvert(inq)} className="btn-green shrink-0">
@@ -87,14 +87,14 @@ export default function AddNominationModal({ isOpen, onClose, inquiries, onConve
                 </div>
                 {open && (
                   <div className="px-14 pb-3">
-                    <div className="text-[12.5px] font-extrabold text-[#dcd2cd] uppercase tracking-wider mb-1.5">History</div>
-                    <ol className="space-y-1 border-l-2 border-[#3d332e] pl-4">
-                      {(inq.auditLog || []).length === 0 && <li className="text-sm text-[#b3a59e]">No activity recorded.</li>}
+                    <div className="text-[12.5px] font-extrabold text-ink-2 uppercase tracking-wider mb-1.5">History</div>
+                    <ol className="space-y-1 border-l-2 border-line-3 pl-4">
+                      {(inq.auditLog || []).length === 0 && <li className="text-sm text-ink-3">No activity recorded.</li>}
                       {(inq.auditLog || []).map((e, idx) => (
                         <li key={idx} className="text-sm">
-                          <span className="font-mono text-[#b3a59e] mr-2">{when(e.timestamp)}</span>
-                          <span className="text-white">{e.action}</span>
-                          {e.by && <span className="text-[#948680]"> · {e.by}</span>}
+                          <span className="font-mono text-ink-3 mr-2">{when(e.timestamp)}</span>
+                          <span className="text-ink">{e.action}</span>
+                          {e.by && <span className="text-ink-3b"> · {e.by}</span>}
                         </li>
                       ))}
                     </ol>

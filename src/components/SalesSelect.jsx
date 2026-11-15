@@ -18,7 +18,7 @@ export default function SalesSelect({ value, team = [], fallbackName = '', onCha
     onChange(members.find(m => m.id === v) || (v === value ? { id: value, name: fallbackName } : null));
   };
   return (
-    <select value={value || ''} onChange={handle} className={`scm-select w-full ${value ? '' : 'text-amber-300'} ${className}`}>
+    <select value={value || ''} onChange={handle} className={`scm-select w-full ${value ? '' : 'text-warn'} ${className}`}>
       <option value="">Not assigned</option>
       {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
       {value && !known && <option value={value}>{fallbackName || 'Former member'}</option>}

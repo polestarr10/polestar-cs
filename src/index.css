@@ -480,3 +480,196 @@ body {
   font: inherit;
   outline: none;
 }
+
+/* ==============================================================================
+   DAY / NIGHT MODE
+   Night mode is the original look: everything above is unchanged, and these
+   night values are the exact original colours. Day mode (data-theme="light" on
+   <html>, the default) is a plain spreadsheet look: white, black text, grey
+   gridlines, Excel green. Its rules all start with :root[data-theme="light"].
+   ============================================================================== */
+:root {
+  --c-page: 8 6 5;
+  --c-surface: 13 11 10;
+  --c-field: 9 7 6;
+  --c-panel: 18 15 14;
+  --c-panel-2: 17 14 13;
+  --c-panel-3: 21 17 15;
+  --c-panel-4: 24 19 17;
+  --c-raised: 24 20 18;
+  --c-raised-2: 32 27 24;
+  --c-raised-3: 28 23 21;
+  --c-hover: 38 30 27;
+  --c-hover-2: 42 34 31;
+  --c-line: 52 43 39;
+  --c-line-2: 58 48 43;
+  --c-line-3: 61 51 46;
+  --c-line-4: 42 34 31;
+  --c-line-soft: 42 35 31;
+  --c-line-soft-2: 34 27 24;
+  --c-line-soft-3: 38 30 27;
+  --c-line-soft-4: 31 25 22;
+  --c-ink: 255 255 255;
+  --c-ink-f5: 245 245 245;
+  --c-ink-e5: 229 229 229;
+  --c-ink-soft: 212 212 212;
+  --c-ink-2: 220 210 205;
+  --c-ink-3: 179 165 158;
+  --c-ink-3b: 148 134 128;
+  --c-ink-4: 138 125 119;
+  --c-ink-4b: 111 98 92;
+  --c-accent: 255 160 140;
+  --c-accent-ink: 255 160 140;
+  --c-on-accent: 13 11 10;
+  --c-danger: 248 113 113;
+  --c-danger-ink: 248 113 113;
+  --c-danger-ink-2: 252 165 165;
+  --c-purple: 192 132 252;
+  --c-purple-ink: 192 132 252;
+  --c-purple-ink-2: 216 180 254;
+  --c-good: 52 211 153;
+  --c-good-2: 110 231 183;
+  --c-good-500: 16 185 129;
+  --c-warn: 252 211 77;
+  --c-warn-400: 251 191 36;
+  --c-info: 125 211 252;
+  --c-rose: 251 113 133;
+  --c-good-tint: 2 44 34;
+  --c-info-tint: 8 47 73;
+}
+
+:root[data-theme="light"] {
+  --c-page: 255 255 255;
+  --c-surface: 255 255 255;
+  --c-field: 255 255 255;
+  --c-panel: 248 248 248;
+  --c-panel-2: 248 248 248;
+  --c-panel-3: 248 248 248;
+  --c-panel-4: 248 248 248;
+  --c-raised: 242 242 242;
+  --c-raised-2: 242 242 242;
+  --c-raised-3: 242 242 242;
+  --c-hover: 232 232 232;
+  --c-hover-2: 232 232 232;
+  --c-line: 150 150 150;
+  --c-line-2: 150 150 150;
+  --c-line-3: 150 150 150;
+  --c-line-4: 150 150 150;
+  --c-line-soft: 185 185 185;
+  --c-line-soft-2: 185 185 185;
+  --c-line-soft-3: 185 185 185;
+  --c-line-soft-4: 185 185 185;
+  --c-ink: 0 0 0;
+  --c-ink-f5: 0 0 0;
+  --c-ink-e5: 0 0 0;
+  --c-ink-soft: 38 38 38;
+  --c-ink-2: 38 38 38;
+  --c-ink-3: 80 80 80;
+  --c-ink-3b: 80 80 80;
+  --c-ink-4: 110 110 110;
+  --c-ink-4b: 110 110 110;
+  --c-accent: 33 115 70;
+  --c-accent-ink: 24 92 55;
+  --c-on-accent: 255 255 255;
+  --c-danger: 192 0 0;
+  --c-danger-ink: 192 0 0;
+  --c-danger-ink-2: 160 0 0;
+  --c-purple: 112 48 160;
+  --c-purple-ink: 112 48 160;
+  --c-purple-ink-2: 90 38 128;
+  --c-good: 22 101 52;
+  --c-good-2: 33 115 70;
+  --c-good-500: 22 101 52;
+  --c-warn: 156 87 0;
+  --c-warn-400: 156 87 0;
+  --c-info: 0 94 163;
+  --c-rose: 192 0 0;
+  --c-good-tint: 226 239 218;
+  --c-info-tint: 221 235 247;
+  color-scheme: light;
+}
+
+/* ---- Day mode: the shared styles above, in day colours ---- */
+:root[data-theme="light"] body { background-color: #ffffff; color: #000000; }
+:root[data-theme="light"] .text-neon-coral, :root[data-theme="light"] .text-neon-orange, :root[data-theme="light"] .text-neon-orange-light,
+:root[data-theme="light"] .text-neon-coral-glow, :root[data-theme="light"] .text-neon-orange-glow { color: rgb(var(--c-accent-ink)) !important; text-shadow: none !important; }
+:root[data-theme="light"] .bg-neon-coral, :root[data-theme="light"] .bg-neon-orange { background-color: rgb(var(--c-accent)) !important; color: #fff !important; box-shadow: none !important; }
+:root[data-theme="light"] .border-neon-coral, :root[data-theme="light"] .border-neon-orange { border-color: rgb(var(--c-accent)) !important; box-shadow: none !important; }
+
+:root[data-theme="light"] .scm-table-container { background: #fff; }
+:root[data-theme="light"] .scm-table th { color: #000; }
+:root[data-theme="light"] .scm-table th.col-num { color: rgb(var(--c-accent-ink)); text-shadow: none; }
+:root[data-theme="light"] .scm-table th .th-sub { color: rgb(var(--c-ink-3)); }
+:root[data-theme="light"] .scm-table td { color: #000; }
+:root[data-theme="light"] .scm-table tr:nth-child(even),
+:root[data-theme="light"] .scm-table tr:nth-child(odd) { background: #fff; }
+:root[data-theme="light"] .scm-table tr:hover { background: rgb(226 239 218) !important; }
+:root[data-theme="light"] .scm-table tr.selected { background: rgb(var(--c-accent) / 0.12) !important; }
+
+:root[data-theme="light"] .btn-coral, :root[data-theme="light"] .btn-orange { background: rgb(var(--c-accent)) !important; color: #fff !important; box-shadow: none !important; }
+:root[data-theme="light"] .btn-coral:hover, :root[data-theme="light"] .btn-orange:hover { background: rgb(24 92 55) !important; box-shadow: none !important; }
+:root[data-theme="light"] .btn-coral-outline, :root[data-theme="light"] .btn-orange-outline { background: #fff !important; color: rgb(var(--c-accent-ink)) !important; border-color: rgb(var(--c-accent)) !important; box-shadow: none !important; }
+:root[data-theme="light"] .btn-coral-outline:hover, :root[data-theme="light"] .btn-orange-outline:hover { background: rgb(var(--c-accent) / 0.08) !important; color: rgb(var(--c-accent-ink)) !important; box-shadow: none !important; }
+:root[data-theme="light"] .btn-green { background: rgb(33 115 70) !important; color: #fff !important; }
+:root[data-theme="light"] .btn-dark { color: #000 !important; border-color: rgb(var(--c-line)) !important; }
+:root[data-theme="light"] .scm-input, :root[data-theme="light"] .scm-select { background: #fff !important; color: #000 !important; }
+:root[data-theme="light"] .scm-input:focus, :root[data-theme="light"] .scm-select:focus { border-color: rgb(var(--c-accent)) !important; box-shadow: 0 0 0 2px rgb(33 115 70 / 0.25) !important; }
+
+:root[data-theme="light"] .status-quoted { background: rgb(226 239 218) !important; color: rgb(22 101 52) !important; border-color: rgb(22 101 52 / 0.5) !important; }
+:root[data-theme="light"] .status-pending { background: rgb(255 236 230) !important; color: rgb(178 50 20) !important; border-color: rgb(178 50 20 / 0.5) !important; box-shadow: none !important; }
+:root[data-theme="light"] .status-review { background: rgb(252 228 214) !important; color: rgb(197 90 17) !important; border-color: rgb(197 90 17 / 0.5) !important; }
+:root[data-theme="light"] .status-negotiating { background: rgb(255 242 204) !important; color: rgb(156 87 0) !important; border-color: rgb(156 87 0 / 0.5) !important; }
+:root[data-theme="light"] .status-followup { background: rgb(237 226 246) !important; color: rgb(112 48 160) !important; border-color: rgb(112 48 160 / 0.5) !important; }
+:root[data-theme="light"] .status-won { background: rgb(198 239 206) !important; color: rgb(0 97 0) !important; border-color: rgb(0 97 0 / 0.6) !important; }
+:root[data-theme="light"] .status-lost { background: rgb(255 199 206) !important; color: rgb(156 0 6) !important; border-color: rgb(156 0 6 / 0.5) !important; }
+
+:root[data-theme="light"] .sheet-wrap { background: #fff; }
+:root[data-theme="light"] .sheet-grid th, :root[data-theme="light"] .sheet-grid td { color: #000; border-color: rgb(var(--c-line-soft)); }
+:root[data-theme="light"] .sheet-grid tbody tr:nth-child(even) td { background: #fff; }
+:root[data-theme="light"] .sheet-grid tbody tr:hover td { background: rgb(226 239 218); }
+:root[data-theme="light"] .sheet-grid .sheet-rownum { color: rgb(var(--c-ink-3)); }
+:root[data-theme="light"] .sheet-cell-editable:hover { outline-color: rgb(var(--c-accent)); }
+:root[data-theme="light"] .sheet-grid td.sheet-cell-editing { outline-color: rgb(var(--c-accent)); }
+:root[data-theme="light"] .sheet-cell-editing input { background: #fff; color: #000; }
+
+/* ---- Light mode: plain and flat, like a spreadsheet ----
+   No glows, square corners, plain grey borders, and the coral tints of the dark
+   theme become the green accent. */
+:root[data-theme="light"] body { background-image: none; font-weight: 400; }
+:root[data-theme="light"] [class*="shadow-[0_0_"] { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12) !important; }
+:root[data-theme="light"] [class*="drop-shadow-["] { --tw-drop-shadow: drop-shadow(0 0 #0000) !important; }
+:root[data-theme="light"] .bg-black\/85 { background-color: rgba(0, 0, 0, 0.35) !important; }
+:root[data-theme="light"] .rounded-2xl,
+:root[data-theme="light"] .rounded-xl,
+:root[data-theme="light"] .rounded-lg { border-radius: 4px !important; }
+:root[data-theme="light"] .btn-coral,
+:root[data-theme="light"] .btn-coral-outline,
+:root[data-theme="light"] .btn-dark,
+:root[data-theme="light"] .btn-green,
+:root[data-theme="light"] .scm-input,
+:root[data-theme="light"] .scm-select { border-radius: 3px !important; transform: none !important; }
+:root[data-theme="light"] .btn-dark { background: rgb(var(--c-surface)) !important; }
+:root[data-theme="light"] .btn-dark:hover { background: rgb(var(--c-raised)) !important; border-color: rgb(var(--c-ink-4)) !important; }
+:root[data-theme="light"] .scm-input,
+:root[data-theme="light"] .scm-select { border-color: rgb(var(--c-line)) !important; }
+/* Tables: every cell boxed like a spreadsheet, a dark rule under the header. */
+:root[data-theme="light"] .scm-table-container,
+:root[data-theme="light"] .sheet-wrap { border: 1px solid rgb(var(--c-line)) !important; }
+:root[data-theme="light"] .scm-table td,
+:root[data-theme="light"] .sheet-grid td { border-color: rgb(var(--c-line-soft)) !important; }
+:root[data-theme="light"] .scm-table th,
+:root[data-theme="light"] .sheet-grid th { border-right-color: rgb(var(--c-line)) !important; }
+:root[data-theme="light"] .scm-table th,
+:root[data-theme="light"] .sheet-grid thead th { border-bottom: 2px solid rgb(var(--c-ink-3)) !important; }
+:root[data-theme="light"] .sheet-grid tfoot td { border-top: 2px solid rgb(var(--c-ink-3)) !important; }
+/* Panel outlines in the accent colour: plain grey on white. */
+:root[data-theme="light"] [class*="border-accent/"] { border-color: rgb(var(--c-line)) !important; }
+:root[data-theme="light"] .scm-table-container,
+:root[data-theme="light"] .sheet-wrap { border-radius: 0; }
+:root[data-theme="light"] .scm-table th,
+:root[data-theme="light"] .sheet-grid thead th,
+:root[data-theme="light"] .sheet-grid tfoot td,
+:root[data-theme="light"] .sheet-grid .sheet-rownum { background: rgb(var(--c-raised)) !important; color: rgb(var(--c-ink)); }
+:root[data-theme="light"] .status-pill { border-radius: 3px !important; }
+:root[data-theme="light"] [class*="bg-[rgba(255,160,140,"] { background-color: rgb(var(--c-accent) / 0.08) !important; }
+:root[data-theme="light"] [class*="hover:bg-[rgba(255,160,140,"]:hover { background-color: rgb(var(--c-accent) / 0.12) !important; }

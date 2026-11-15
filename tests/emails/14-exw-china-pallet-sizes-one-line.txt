@@ -1,0 +1,80 @@
+From: Sameer Joshi [mailto:exim@soundline-india.com]
+Sent: 12 November 2026 16:04
+To: Undisclosed-Recipient:;
+Cc: buyer2@soundline-india.com
+Subject: Quote Zenith PO#9901 // LCL EXW China to NSA //2 plt // 2416 kgs/ 3.187 Cbm
+
+ 
+
+Calling for Quotations:
+
+ 
+
+Shipment Terms: Ex-Works
+
+Mode of Shipment : LCL Sea
+
+ 
+
+Cargo : RAW MATERIAL PARTS
+
+            Transformer–85043100
+
+            
+
+Pkgs: 2 Plt
+
+Pallet Dimensions:
+
+95x118X110cm*1 \ 138x118x110cm*1
+
+GW : 2416 kgs
+
+Volume :3.187 CBM
+
+ 
+
+Ex-Works Address:
+
+Add: F3, Litai Bldg, Lianfeng Industrial Zone,
+
+No.39# Liguang,Rd, Zhoucun, Lishui Town,
+
+Foshan,Guangdong China 528244
+
+ 
+
+You need to offer best quote of Ex-Works charges with documentation and customs along with freight & destination charges.  
+
+Separately mention the different headings of charges i.e DO charges, THC, CFS Chgs etc... whatever applicable.
+
+ 
+
+Also advise Cutoff & ETD.
+
+ 
+
+Pls. note shipper will not provide export license
+
+Special Note:Transshipment not allowed.
+
+ 
+
+ 
+
+Best Regards,
+
+Sameer Joshi
+
+(logistics executive)
+
+Soundline
+
+exim@soundline-india.com
+=== EXPECTED ===
+{ "kind": "new_inquiry",
+  "inquiries": [ { "pod": "Nhava Sheva", "podCode": "INNSA", "polCode": "CNSZX", "direction": "Import",
+    "incoterms": "EXW", "containerType": "LCL", "commodity": "RAW MATERIAL PARTS, Transformer", "hsnCode": "85043100",
+    "packages": "2 pallets", "dimensions": "95 × 118 × 110 cm × 1; 138 × 118 × 110 cm × 1",
+    "grossWeightKg": 2416, "volumeCbm": 3.187,
+    "pickupAddress": "F3, Litai Bldg, Lianfeng Industrial Zone, No.39# Liguang,Rd, Zhoucun, Lishui Town, Foshan,Guangdong China 528244" } ] }

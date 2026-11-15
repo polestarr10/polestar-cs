@@ -22,34 +22,34 @@ export default function FollowUps({ inquiries, now, followUps, onFollowUp, onClo
 
   return (
     <div className="space-y-3 mt-2">
-      <div className="text-sm text-[#dcd2cd]">
+      <div className="text-sm text-ink-2">
         When a customer goes quiet {FOLLOW_UP_AFTER_HOURS}h after our reply, a follow-up falls due. Up to {MAX_FOLLOW_UPS} follow-ups, {FOLLOW_UP_AFTER_HOURS}h apart. A reply from the customer starts the count again.
       </div>
 
-      <Section icon={Repeat} title="Due now" color="#c084fc" count={followUps.due.length}
+      <Section icon={Repeat} title="Due now" color="rgb(var(--c-purple-ink))" count={followUps.due.length}
         hint="Send these today, oldest silence first."
         empty="No follow-ups due right now.">
         {followUps.due.map(({ inquiry: inq, fu }) => (
-          <Row key={inq.id} inquiry={inq} onOpen={onViewDetails} noteClass="text-[#c084fc]"
+          <Row key={inq.id} inquiry={inq} onOpen={onViewDetails} noteClass="text-purple-ink"
             note={`Follow-up ${fu.number} of ${MAX_FOLLOW_UPS} · no reply for ${formatQuiet(fu.hoursQuiet)}${inq.isQuoted ? '' : ' (we asked for details)'}`}>
             <button onClick={() => onFollowUp(inq)} className="btn-coral"><Repeat size={13} /><span>Follow up</span></button>
           </Row>
         ))}
       </Section>
 
-      <Section icon={XCircle} title={`No reply after ${MAX_FOLLOW_UPS}`} color="#f87171" count={followUps.cold.length}
+      <Section icon={XCircle} title={`No reply after ${MAX_FOLLOW_UPS}`} color="rgb(var(--c-danger-ink))" count={followUps.cold.length}
         hint="Close as lost, or try once more."
         empty="No customers have gone cold.">
         {followUps.cold.map(({ inquiry: inq, fu }) => (
-          <Row key={inq.id} inquiry={inq} onOpen={onViewDetails} noteClass="text-[#f87171]"
+          <Row key={inq.id} inquiry={inq} onOpen={onViewDetails} noteClass="text-danger-ink"
             note={`${fu.sent} follow-ups sent · quiet ${formatQuiet(fu.hoursQuiet)}`}>
             <button onClick={() => onFollowUp(inq)} className="btn-dark"><Repeat size={13} /><span>Once more</span></button>
-            <button onClick={() => onCloseLost(inq)} className="btn-dark text-[#f87171]"><XCircle size={13} /><span>Close as lost</span></button>
+            <button onClick={() => onCloseLost(inq)} className="btn-dark text-danger-ink"><XCircle size={13} /><span>Close as lost</span></button>
           </Row>
         ))}
       </Section>
 
-      <Section icon={Clock} title="Coming up" color="#fbbf24" count={followUps.waiting.length}
+      <Section icon={Clock} title="Coming up" color="rgb(var(--c-warn-400))" count={followUps.waiting.length}
         hint="Waiting on the customer; a follow-up falls due at the time shown."
         empty="Nothing scheduled.">
         {followUps.waiting.map(({ inquiry: inq, fu }) => (
@@ -60,7 +60,7 @@ export default function FollowUps({ inquiries, now, followUps, onFollowUp, onClo
         ))}
       </Section>
 
-      <Section icon={History} title={`Sent in the last ${RECENT_DAYS} days`} color="#34d399" count={recent.length}
+      <Section icon={History} title={`Sent in the last ${RECENT_DAYS} days`} color="rgb(var(--c-good))" count={recent.length}
         hint="Logged when you clicked “Mark follow-up sent”."
         empty="No follow-ups sent this week.">
         {recent.map(f => (

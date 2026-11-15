@@ -19,13 +19,13 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#080605]">
-        <div className="max-w-lg w-full rounded-2xl border border-[#f87171]/60 bg-[#120f0e] p-6 space-y-3">
-          <div className="text-[18px] font-extrabold text-white">Something went wrong on this screen</div>
-          <div className="text-sm text-[#dcd2cd]">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-page">
+        <div className="max-w-lg w-full rounded-2xl border border-danger/60 bg-panel p-6 space-y-3">
+          <div className="text-[18px] font-extrabold text-ink">Something went wrong on this screen</div>
+          <div className="text-sm text-ink-2">
             Your inquiries are saved on this device and weren't affected. Reload the page to continue. If it keeps happening, send this message to whoever maintains the app:
           </div>
-          <pre className="text-[12.5px] font-mono text-[#fca5a5] bg-[#090706] border border-[#3d332e] rounded-lg p-3 whitespace-pre-wrap max-h-40 overflow-auto">
+          <pre className="text-[12.5px] font-mono text-danger-ink-2 bg-field border border-line-3 rounded-lg p-3 whitespace-pre-wrap max-h-40 overflow-auto">
             {String(this.state.error?.message || this.state.error)}
           </pre>
           <div className="flex gap-2">

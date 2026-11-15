@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     sales_member_id TEXT,
     buy_charge TEXT,
     sell_charge TEXT,
+    agent_requests JSONB DEFAULT '[]'::jsonb,   -- ex-works rate requests sent to agents
     cargo_ready_date TEXT,
     special_requirements TEXT,
     urgency TEXT DEFAULT 'NORMAL',

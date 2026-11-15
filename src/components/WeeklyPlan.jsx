@@ -36,14 +36,14 @@ export function TaskRow({ item, onToggle, onNote, onDelete }) {
     <div className="group px-3 py-1.5">
       <div className="flex items-start gap-2">
         <input type="checkbox" checked={item.done} onChange={(e) => onToggle(e.target.checked)} className="mt-1 w-4 h-4 accent-[#FFA08C] shrink-0 cursor-pointer" />
-        <span className={`flex-1 text-sm ${item.done ? 'line-through text-[#8a7d77]' : 'text-white'}`}>{item.text}</span>
+        <span className={`flex-1 text-sm ${item.done ? 'line-through text-ink-4' : 'text-ink'}`}>{item.text}</span>
         {onNote && (
-          <button onClick={() => { setNote(item.note || ''); setEditingNote(v => !v); }} className={`p-0.5 ${item.note ? 'text-[#FFA08C]' : 'text-[#6f625c] opacity-0 group-hover:opacity-100'} hover:text-white`} title="Add a note">
+          <button onClick={() => { setNote(item.note || ''); setEditingNote(v => !v); }} className={`p-0.5 ${item.note ? 'text-accent-ink' : 'text-ink-4b opacity-0 group-hover:opacity-100'} hover:text-ink`} title="Add a note">
             <MessageSquare size={13} />
           </button>
         )}
         {onDelete && (
-          <button onClick={onDelete} className="p-0.5 text-[#6f625c] opacity-0 group-hover:opacity-100 hover:text-[#f87171]" title="Remove task">
+          <button onClick={onDelete} className="p-0.5 text-ink-4b opacity-0 group-hover:opacity-100 hover:text-danger-ink" title="Remove task">
             <X size={13} />
           </button>
         )}
@@ -54,7 +54,7 @@ export function TaskRow({ item, onToggle, onNote, onDelete }) {
           <button type="submit" className="btn-dark text-[12.5px]">Save</button>
         </form>
       ) : item.note ? (
-        <div className="ml-6 text-[12.5px] text-[#dcd2cd] italic">{item.note}</div>
+        <div className="ml-6 text-[12.5px] text-ink-2 italic">{item.note}</div>
       ) : null}
     </div>
   );
@@ -63,9 +63,9 @@ export function TaskRow({ item, onToggle, onNote, onDelete }) {
 function AddTask({ onAdd }) {
   const [text, setText] = useState('');
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) { onAdd(text.trim()); setText(''); } }} className="flex items-center gap-1.5 px-3 py-2 border-t border-[#2a231f]">
-      <Plus size={13} className="text-[#6f625c] shrink-0" />
-      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a task" className="flex-1 bg-transparent text-sm text-white placeholder:text-[#6f625c] outline-none" />
+    <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) { onAdd(text.trim()); setText(''); } }} className="flex items-center gap-1.5 px-3 py-2 border-t border-line-soft">
+      <Plus size={13} className="text-ink-4b shrink-0" />
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a task" className="flex-1 bg-transparent text-sm text-ink placeholder:text-ink-4b outline-none" />
     </form>
   );
 }
@@ -79,11 +79,11 @@ function AreaField({ value, onSave }) {
     return (
       <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-        className="mt-0.5 w-full bg-[#090706] border border-[#FFA08C]/60 rounded px-1.5 py-0.5 text-[13px] font-bold text-[#FFA08C] outline-none" placeholder="Area / focus, e.g. office + calls" />
+        className="mt-0.5 w-full bg-field border border-accent/60 rounded px-1.5 py-0.5 text-[13px] font-bold text-accent-ink outline-none" placeholder="Area / focus, e.g. office + calls" />
     );
   }
   return (
-    <button onClick={() => { setDraft(value || ''); setEditing(true); }} className={`block w-full text-left text-[13px] font-bold truncate ${value ? 'text-[#FFA08C]' : 'text-[#6f625c] hover:text-[#dcd2cd]'}`} title={value || 'Set the area / focus for this day'}>
+    <button onClick={() => { setDraft(value || ''); setEditing(true); }} className={`block w-full text-left text-[13px] font-bold truncate ${value ? 'text-accent-ink' : 'text-ink-4b hover:text-ink-2'}`} title={value || 'Set the area / focus for this day'}>
       {value || '+ Area / focus'}
     </button>
   );
@@ -93,29 +93,29 @@ function DayCard({ day, index, isToday, isPast, onChange }) {
   const done = day.items.filter(i => i.done).length;
   const left = day.items.length - done;
   return (
-    <div className={`rounded-xl border bg-[#0d0b0a] overflow-hidden flex flex-col ${isToday ? 'border-[#FFA08C] shadow-[0_0_18px_rgba(255,160,140,0.25)]' : 'border-[#342b27]'}`}>
-      <div className={`px-3 py-2 border-b border-[#342b27] ${isToday ? 'bg-[rgba(255,160,140,0.12)]' : 'bg-[#110e0d]'}`}>
+    <div className={`rounded-xl border bg-surface overflow-hidden flex flex-col ${isToday ? 'border-accent shadow-[0_0_18px_rgba(255,160,140,0.25)]' : 'border-line'}`}>
+      <div className={`px-3 py-2 border-b border-line ${isToday ? 'bg-[rgba(255,160,140,0.12)]' : 'bg-panel-2'}`}>
         <div className="flex items-center justify-between gap-2">
-          <span className="font-extrabold text-white tracking-wider">
+          <span className="font-extrabold text-ink tracking-wider">
             {day.day}
-            {isToday && <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded-full bg-[#FFA08C] text-[#0d0b0a] align-middle">TODAY</span>}
+            {isToday && <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded-full bg-accent text-on-accent align-middle">TODAY</span>}
           </span>
-          <span className="text-[12.5px] font-mono text-[#dcd2cd]">{formatDay(`${day.date}T00:00:00`, { day: '2-digit', month: 'short' })}</span>
+          <span className="text-[12.5px] font-mono text-ink-2">{formatDay(`${day.date}T00:00:00`, { day: '2-digit', month: 'short' })}</span>
         </div>
         <AreaField value={day.area} onSave={(area) => onChange(p => ({ ...p, days: p.days.map((d, i) => (i === index ? { ...d, area } : d)) }))} />
         {day.items.length > 0 && (
           <div className="mt-1.5 flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full bg-[#181412] overflow-hidden">
+            <div className="flex-1 h-1.5 rounded-full bg-raised overflow-hidden">
               <div className="h-full bg-emerald-500" style={{ width: `${(done / day.items.length) * 100}%` }} />
             </div>
-            <span className={`text-[12px] font-bold ${isPast && left ? 'text-[#f87171]' : 'text-[#b3a59e]'}`}>
+            <span className={`text-[12px] font-bold ${isPast && left ? 'text-danger-ink' : 'text-ink-3'}`}>
               {isPast && left ? `${left} not done` : `${done}/${day.items.length}`}
             </span>
           </div>
         )}
       </div>
-      <div className="flex-1 divide-y divide-[#1f1916] max-h-[420px] overflow-y-auto">
-        {day.items.length === 0 && <div className="px-3 py-2 text-[13px] text-[#6f625c]">Nothing planned.</div>}
+      <div className="flex-1 divide-y divide-line-soft-4 max-h-[420px] overflow-y-auto">
+        {day.items.length === 0 && <div className="px-3 py-2 text-[13px] text-ink-4b">Nothing planned.</div>}
         {day.items.map(item => (
           <TaskRow key={item.id} item={item}
             onToggle={(v) => onChange(p => patchItem(p, index, item.id, { done: v }))}
@@ -150,16 +150,16 @@ function ImportPanel({ week, onImported, onCancel }) {
   };
 
   return (
-    <div className="rounded-xl border border-[#FFA08C]/50 bg-[#0d0b0a] p-4 space-y-3">
+    <div className="rounded-xl border border-accent/50 bg-surface p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden">
+        <div className="flex items-center rounded-full border border-line-3 overflow-hidden">
           {[['file', Upload, 'Upload Excel / CSV'], ['text', ClipboardPaste, 'Paste text']].map(([k, Icon, label]) => (
-            <button key={k} onClick={() => setMode(k)} className={`px-3.5 py-1.5 text-sm font-extrabold flex items-center gap-1.5 ${mode === k ? 'bg-[#FFA08C] text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}>
+            <button key={k} onClick={() => setMode(k)} className={`px-3.5 py-1.5 text-sm font-extrabold flex items-center gap-1.5 ${mode === k ? 'bg-accent text-on-accent' : 'text-ink-2 hover:text-ink'}`}>
               <Icon size={13} />{label}
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-[13px] text-[#dcd2cd]">
+        <label className="flex items-center gap-2 text-[13px] text-ink-2">
           If the plan has no dates, it's for
           <select value={fallback} onChange={(e) => setFallback(e.target.value)} className="scm-select !py-1">
             <option value={thisWeek}>this week</option>
@@ -170,17 +170,17 @@ function ImportPanel({ week, onImported, onCancel }) {
       </div>
 
       {error && (
-        <div className="p-2.5 rounded-lg text-sm font-bold flex items-start gap-2 border border-[#f87171]/60 bg-[rgba(248,113,113,0.1)] text-[#fca5a5]">
+        <div className="p-2.5 rounded-lg text-sm font-bold flex items-start gap-2 border border-danger/60 bg-[rgba(248,113,113,0.1)] text-danger-ink-2">
           <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {error}
         </div>
       )}
 
       {mode === 'file' ? (
         <div className="space-y-2">
-          <button onClick={() => fileRef.current?.click()} disabled={busy} className="w-full py-8 rounded-xl border-2 border-dashed border-[#3d332e] hover:border-[#FFA08C] text-[#dcd2cd] hover:text-white flex flex-col items-center gap-2 disabled:opacity-50">
-            <FileSpreadsheet size={26} className="text-emerald-400" />
+          <button onClick={() => fileRef.current?.click()} disabled={busy} className="w-full py-8 rounded-xl border-2 border-dashed border-line-3 hover:border-accent text-ink-2 hover:text-ink flex flex-col items-center gap-2 disabled:opacity-50">
+            <FileSpreadsheet size={26} className="text-good" />
             <span className="font-bold">{busy ? 'Reading…' : 'Choose the plan file (.xlsx, .xls or .csv)'}</span>
-            <span className="text-[12.5px] text-[#b3a59e]">Every sheet is read. Day columns become the daily checklist; target figures are picked up; other sheets are kept for reference.</span>
+            <span className="text-[12.5px] text-ink-3">Every sheet is read. Day columns become the daily checklist; target figures are picked up; other sheets are kept for reference.</span>
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) run(() => readPlanFile(f, fallback)); }} />
@@ -207,11 +207,11 @@ const isFinal = (plan) => plan?.status === 'final' || plan?.status === 'approved
 
 function StatusPill({ plan }) {
   return isFinal(plan) ? (
-    <span className="text-[12.5px] font-extrabold px-2.5 py-1 rounded-full border bg-[rgba(16,185,129,0.12)] text-emerald-300 border-emerald-500/50">
+    <span className="text-[12.5px] font-extrabold px-2.5 py-1 rounded-full border bg-[rgba(16,185,129,0.12)] text-good-2 border-emerald-500/50">
       Finalised with VP{plan.finalizedAt ? ` · ${new Date(plan.finalizedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` : ''}
     </span>
   ) : (
-    <span className="text-[12.5px] font-extrabold px-2.5 py-1 rounded-full border bg-[#181412] text-[#dcd2cd] border-[#3d332e]">Draft</span>
+    <span className="text-[12.5px] font-extrabold px-2.5 py-1 rounded-full border bg-raised text-ink-2 border-line-3">Draft</span>
   );
 }
 
@@ -236,13 +236,13 @@ function PresentView({ plan, review, officialTarget, repName, weekLabel, today, 
   const final = isFinal(plan);
   const { done, total } = planProgress(plan);
   return (
-    <div className="fixed inset-0 z-50 bg-[#080605] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-page overflow-y-auto">
       <div className="max-w-7xl mx-auto p-5 space-y-4 pb-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="text-[13px] font-extrabold text-[#FFA08C] uppercase tracking-wider">Weekly plan review</div>
-            <div className="text-[24px] font-extrabold text-white">{repName}</div>
-            <div className="text-[15px] text-[#dcd2cd] font-semibold">{weekLabel} · {total} tasks planned{done ? `, ${done} done` : ''}</div>
+            <div className="text-[13px] font-extrabold text-accent-ink uppercase tracking-wider">Weekly plan review</div>
+            <div className="text-[24px] font-extrabold text-ink">{repName}</div>
+            <div className="text-[15px] text-ink-2 font-semibold">{weekLabel} · {total} tasks planned{done ? `, ${done} done` : ''}</div>
           </div>
           <div className="flex items-center gap-2">
             <StatusPill plan={plan} />
@@ -252,32 +252,32 @@ function PresentView({ plan, review, officialTarget, repName, weekLabel, today, 
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <div className="lg:col-span-3 rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-[#342b27] bg-[#110e0d] text-[14px] font-extrabold text-white uppercase tracking-wider flex items-center gap-2"><BarChart3 size={15} className="text-[#FFA08C]" />Last two weeks</div>
+          <div className="lg:col-span-3 rounded-xl border border-line bg-surface overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-line bg-panel-2 text-[14px] font-extrabold text-ink uppercase tracking-wider flex items-center gap-2"><BarChart3 size={15} className="text-accent-ink" />Last two weeks</div>
             <Review review={review} />
           </div>
           <div className="lg:col-span-2 space-y-4">
-            <div className="rounded-xl border border-[#FFA08C]/40 bg-[#0d0b0a] p-4 space-y-2">
-              <div className="text-[13px] font-extrabold text-[#dcd2cd] uppercase tracking-wider flex items-center gap-1.5"><Target size={14} className="text-[#FFA08C]" />Target for this week (CBM)</div>
+            <div className="rounded-xl border border-accent/40 bg-surface p-4 space-y-2">
+              <div className="text-[13px] font-extrabold text-ink-2 uppercase tracking-wider flex items-center gap-1.5"><Target size={14} className="text-accent-ink" />Target for this week (CBM)</div>
               <div className="flex items-center gap-3 flex-wrap">
                 <TargetInput plan={plan} onChange={onChange} big />
-                <span className="text-[13px] text-[#b3a59e]">
+                <span className="text-[13px] text-ink-3">
                   {officialTarget ? `Target currently saved: ${officialTarget} CBM` : 'No target saved for this week yet'}
                   <br />Finalising saves this as your target for the week.
                 </span>
               </div>
             </div>
-            <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] p-4 space-y-2">
-              <div className="text-[13px] font-extrabold text-[#dcd2cd] uppercase tracking-wider flex items-center gap-1.5"><MessageSquare size={14} className="text-[#FFA08C]" />VP's comments</div>
+            <div className="rounded-xl border border-line bg-surface p-4 space-y-2">
+              <div className="text-[13px] font-extrabold text-ink-2 uppercase tracking-wider flex items-center gap-1.5"><MessageSquare size={14} className="text-accent-ink" />VP's comments</div>
               <NotesInput plan={plan} onChange={onChange} rows={5} />
             </div>
           </div>
         </div>
 
         {plan.general.length > 0 && (
-          <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-            <div className="px-3 py-2 border-b border-[#342b27] bg-[#110e0d] font-extrabold text-white tracking-wider">ANY DAY THIS WEEK</div>
-            <div className="divide-y divide-[#1f1916]">
+          <div className="rounded-xl border border-line bg-surface overflow-hidden">
+            <div className="px-3 py-2 border-b border-line bg-panel-2 font-extrabold text-ink tracking-wider">ANY DAY THIS WEEK</div>
+            <div className="divide-y divide-line-soft-4">
               {plan.general.map(item => (
                 <TaskRow key={item.id} item={item}
                   onToggle={(v) => onChange(p => patchItem(p, -1, item.id, { done: v }))}
@@ -296,9 +296,9 @@ function PresentView({ plan, review, officialTarget, repName, weekLabel, today, 
         </div>
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 border-t border-[#342b27] bg-[#0d0b0a]/95 backdrop-blur px-5 py-3">
+      <div className="fixed bottom-0 inset-x-0 border-t border-line bg-surface/95 backdrop-blur px-5 py-3">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm text-[#dcd2cd]">
+          <span className="text-sm text-ink-2">
             {final ? 'Finalised. You can still tick tasks off and make small changes during the week.' : 'Make the changes the VP asks for above, then finalise the plan together.'}
           </span>
           {final ? (
@@ -314,12 +314,12 @@ function PresentView({ plan, review, officialTarget, repName, weekLabel, today, 
 
 function Panel({ title, icon: Icon, open, onToggle, right, children }) {
   return (
-    <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-      <button onClick={onToggle} className="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-[#110e0d] hover:bg-[#181412] text-left">
-        <span className="flex items-center gap-2 text-[14px] font-extrabold text-white uppercase tracking-wider"><Icon size={15} className="text-[#FFA08C]" />{title}</span>
-        <span className="flex items-center gap-3 text-[12.5px] text-[#b3a59e]">{right}{open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
+    <div className="rounded-xl border border-line bg-surface overflow-hidden">
+      <button onClick={onToggle} className="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-panel-2 hover:bg-raised text-left">
+        <span className="flex items-center gap-2 text-[14px] font-extrabold text-ink uppercase tracking-wider"><Icon size={15} className="text-accent-ink" />{title}</span>
+        <span className="flex items-center gap-3 text-[12.5px] text-ink-3">{right}{open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
       </button>
-      {open && <div className="border-t border-[#342b27]">{children}</div>}
+      {open && <div className="border-t border-line">{children}</div>}
     </div>
   );
 }
@@ -332,14 +332,14 @@ function Review({ review }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-[12px] text-[#b3a59e] uppercase">
+          <tr className="text-[12px] text-ink-3 uppercase">
             <th className="text-left px-4 py-2 font-bold"></th>
             <th className="text-right px-4 py-2 font-bold">Week of {week(recent)}</th>
             <th className="text-right px-4 py-2 font-bold">Week of {week(previous)}</th>
             <th className="text-right px-4 py-2 font-bold">Change</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1f1916]">
+        <tbody className="divide-y divide-line-soft-4">
           {REVIEW_ROWS.map(([name, get, higherIsBetter, num]) => {
             const a = num ? num(recent) : get(recent);
             const b = num ? num(previous) : get(previous);
@@ -347,10 +347,10 @@ function Review({ review }) {
             const good = diff === null || diff === 0 || higherIsBetter === undefined ? null : (diff > 0) === Boolean(higherIsBetter);
             return (
               <tr key={name}>
-                <td className="px-4 py-1.5 text-[#dcd2cd] font-semibold">{name}</td>
-                <td className="px-4 py-1.5 text-right font-mono font-bold text-white">{get(recent)}</td>
-                <td className="px-4 py-1.5 text-right font-mono text-[#dcd2cd]">{get(previous)}</td>
-                <td className={`px-4 py-1.5 text-right font-mono font-bold ${good === null ? 'text-[#8a7d77]' : good ? 'text-emerald-400' : 'text-[#f87171]'}`}>
+                <td className="px-4 py-1.5 text-ink-2 font-semibold">{name}</td>
+                <td className="px-4 py-1.5 text-right font-mono font-bold text-ink">{get(recent)}</td>
+                <td className="px-4 py-1.5 text-right font-mono text-ink-2">{get(previous)}</td>
+                <td className={`px-4 py-1.5 text-right font-mono font-bold ${good === null ? 'text-ink-4' : good ? 'text-good' : 'text-danger-ink'}`}>
                   {diff === null || diff === 0 ? '—' : `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}`}
                 </td>
               </tr>
@@ -359,8 +359,8 @@ function Review({ review }) {
         </tbody>
       </table>
       {recent.missed.length > 0 && (
-        <div className="px-4 py-2.5 border-t border-[#342b27] text-[13px] text-[#dcd2cd]">
-          <span className="font-bold text-[#f87171]">Missed in the week of {week(recent)}:</span>{' '}
+        <div className="px-4 py-2.5 border-t border-line text-[13px] text-ink-2">
+          <span className="font-bold text-danger-ink">Missed in the week of {week(recent)}:</span>{' '}
           {recent.missed.slice(0, 6).map(m => `${m.id} (${m.issue})`).join('; ')}{recent.missed.length > 6 ? ` and ${recent.missed.length - 6} more` : ''}
         </div>
       )}
@@ -372,18 +372,18 @@ function Suggestions({ suggestions, plan, onAdd }) {
   const [dayFor, setDayFor] = useState({});
   const planned = new Set([...plan.general, ...plan.days.flatMap(d => d.items)].map(i => i.text));
   if (!suggestions.length) {
-    return <div className="px-4 py-3 text-sm text-[#b3a59e]">No suggestions yet: no open quotes, quiet customers, price losses or recent bookings to build on.</div>;
+    return <div className="px-4 py-3 text-sm text-ink-3">No suggestions yet: no open quotes, quiet customers, price losses or recent bookings to build on.</div>;
   }
   return (
-    <div className="divide-y divide-[#1f1916] max-h-[380px] overflow-y-auto">
+    <div className="divide-y divide-line-soft-4 max-h-[380px] overflow-y-auto">
       {suggestions.map(s => {
         const added = planned.has(s.text);
         const target = dayFor[s.key] ?? 0;
         return (
           <div key={s.key} className="px-4 py-2 flex flex-wrap items-center gap-2">
-            <span className="text-[11.5px] font-extrabold px-2 py-0.5 rounded-full bg-[#181412] text-[#c084fc] shrink-0">{s.reason}</span>
-            <span className={`flex-1 min-w-[200px] text-sm ${added ? 'text-[#8a7d77] line-through' : 'text-white'}`}>{s.text}</span>
-            {added ? <span className="text-[12.5px] font-bold text-emerald-400">Added</span> : (
+            <span className="text-[11.5px] font-extrabold px-2 py-0.5 rounded-full bg-raised text-purple-ink shrink-0">{s.reason}</span>
+            <span className={`flex-1 min-w-[200px] text-sm ${added ? 'text-ink-4 line-through' : 'text-ink'}`}>{s.text}</span>
+            {added ? <span className="text-[12.5px] font-bold text-good">Added</span> : (
               <span className="flex items-center gap-1.5 shrink-0">
                 <select value={target} onChange={(e) => setDayFor(m => ({ ...m, [s.key]: Number(e.target.value) }))} className="scm-select !py-1 text-[13px]">
                   {plan.days.map((d, i) => <option key={d.day} value={i}>{titleCase(d.day)}</option>)}
@@ -450,13 +450,13 @@ export default function WeeklyPlan({ plans, loadPlan, onSavePlan, onChangePlan, 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setWeek(dayKey(addDays(monday, -7)))} className="btn-dark !px-2.5" title="Previous week"><ChevronLeft size={15} /></button>
-          <span className="text-[15px] font-extrabold text-white min-w-[230px] text-center">
+          <span className="text-[15px] font-extrabold text-ink min-w-[230px] text-center">
             {formatDay(monday, LONG)} – {formatDay(addDays(monday, 5), LONG)}
           </span>
           <button onClick={() => setWeek(dayKey(addDays(monday, 7)))} className="btn-dark !px-2.5" title="Next week"><ChevronRight size={15} /></button>
-          <div className="flex items-center rounded-full border border-[#3d332e] overflow-hidden">
+          <div className="flex items-center rounded-full border border-line-3 overflow-hidden">
             {[[thisWeek, 'This week'], [nextWeek, 'Next week']].map(([k, label]) => (
-              <button key={k} onClick={() => setWeek(k)} className={`px-3 py-1 text-[13px] font-extrabold ${week === k ? 'bg-[#FFA08C] text-[#0d0b0a]' : 'text-[#dcd2cd] hover:text-white'}`}>{label}</button>
+              <button key={k} onClick={() => setWeek(k)} className={`px-3 py-1 text-[13px] font-extrabold ${week === k ? 'bg-accent text-on-accent' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
             ))}
           </div>
         </div>
@@ -466,7 +466,7 @@ export default function WeeklyPlan({ plans, loadPlan, onSavePlan, onChangePlan, 
             <button onClick={() => setPresenting(true)} className="btn-coral"><Presentation size={14} /><span>Review with VP</span></button>
             <button onClick={() => exportPlanExcel(plan, review, currentUser.name)} className="btn-dark text-sm" title="Download the plan as Excel"><Download size={13} /><span>Excel</span></button>
             <button onClick={() => setImporting(true)} className="btn-dark text-sm" title="Load a corrected or existing plan from Excel or text"><Upload size={13} /><span>Import</span></button>
-            <button onClick={() => window.confirm(`Remove the plan for ${weekName}?`) && onDeletePlan(week)} className="btn-dark text-sm text-[#f87171]" title="Remove plan"><Trash2 size={13} /></button>
+            <button onClick={() => window.confirm(`Remove the plan for ${weekName}?`) && onDeletePlan(week)} className="btn-dark text-sm text-danger-ink" title="Remove plan"><Trash2 size={13} /></button>
           </div>
         )}
       </div>
@@ -474,8 +474,8 @@ export default function WeeklyPlan({ plans, loadPlan, onSavePlan, onChangePlan, 
       {importing && <ImportPanel week={week} onImported={handleImported} onCancel={() => setImporting(false)} />}
 
       {plan?.isSample && (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-[#c084fc]/60 bg-[rgba(192,132,252,0.08)]">
-          <span className="text-sm font-bold text-[#d8b4fe]">This is a sample plan with made-up companies, to show how the page works. Remove it before making your real plan.</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-purple/60 bg-[rgba(192,132,252,0.08)]">
+          <span className="text-sm font-bold text-purple-ink-2">This is a sample plan with made-up companies, to show how the page works. Remove it before making your real plan.</span>
           <button onClick={() => onDeletePlan(week)} className="btn-dark text-sm"><Trash2 size={13} /><span>Remove sample</span></button>
         </div>
       )}
@@ -492,40 +492,40 @@ export default function WeeklyPlan({ plans, loadPlan, onSavePlan, onChangePlan, 
       </Panel>
 
       {plan === undefined ? (
-        <div className="text-sm text-[#b3a59e]">Loading…</div>
+        <div className="text-sm text-ink-3">Loading…</div>
       ) : !plan ? (
         !importing && (
-          <div className="rounded-xl border border-dashed border-[#3d332e] p-8 text-center space-y-3">
-            <ListChecks size={26} className="mx-auto text-[#FFA08C]" />
-            <div className="font-extrabold text-white">No plan for {weekName} yet</div>
-            <div className="text-sm text-[#dcd2cd] max-w-lg mx-auto">
+          <div className="rounded-xl border border-dashed border-line-3 p-8 text-center space-y-3">
+            <ListChecks size={26} className="mx-auto text-accent-ink" />
+            <div className="font-extrabold text-ink">No plan for {weekName} yet</div>
+            <div className="text-sm text-ink-2 max-w-lg mx-auto">
               Start a plan and fill each day using the review above and the suggested tasks. Then open "Review with VP" on your laptop, go through it together, and finalise it.
             </div>
             <div className="flex flex-wrap justify-center gap-2">
               <button onClick={() => onSavePlan(blankPlan(week))} className="btn-coral"><Plus size={14} /><span>Start plan for {weekName}</span></button>
               <button onClick={() => setImporting(true)} className="btn-dark"><Upload size={14} /><span>Import from Excel / text</span></button>
-              <button onClick={() => onSavePlan(buildSamplePlan(week))} className="btn-dark text-[#d8b4fe]"><Sparkles size={14} /><span>Load sample plan</span></button>
+              <button onClick={() => onSavePlan(buildSamplePlan(week))} className="btn-dark text-purple-ink-2"><Sparkles size={14} /><span>Load sample plan</span></button>
             </div>
           </div>
         )
       ) : (
         <>
-          <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] p-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="rounded-xl border border-line bg-surface p-3 flex flex-wrap items-center gap-x-6 gap-y-2">
             <div>
-              <div className="text-[12px] text-[#b3a59e] uppercase font-bold">Progress</div>
-              <div className="text-[20px] font-extrabold font-mono text-white">{done}/{total} <span className="text-[13px] font-sans text-[#dcd2cd]">tasks done</span></div>
+              <div className="text-[12px] text-ink-3 uppercase font-bold">Progress</div>
+              <div className="text-[20px] font-extrabold font-mono text-ink">{done}/{total} <span className="text-[13px] font-sans text-ink-2">tasks done</span></div>
             </div>
             <label className="block">
-              <div className="text-[12px] text-[#b3a59e] uppercase font-bold flex items-center gap-1"><Target size={12} />Proposed target (CBM)</div>
+              <div className="text-[12px] text-ink-3 uppercase font-bold flex items-center gap-1"><Target size={12} />Proposed target (CBM)</div>
               <TargetInput plan={plan} onChange={change} />
             </label>
             {plan.targets.map((t, i) => (
               <div key={i}>
-                <div className="text-[12px] text-[#b3a59e] uppercase font-bold flex items-center gap-1"><Target size={12} />{t.label}</div>
-                <div className="text-[20px] font-extrabold font-mono text-[#FFA08C]">{t.value.toLocaleString()} <span className="text-[13px] font-sans">{t.unit}</span></div>
+                <div className="text-[12px] text-ink-3 uppercase font-bold flex items-center gap-1"><Target size={12} />{t.label}</div>
+                <div className="text-[20px] font-extrabold font-mono text-accent-ink">{t.value.toLocaleString()} <span className="text-[13px] font-sans">{t.unit}</span></div>
               </div>
             ))}
-            <div className="ml-auto text-[12.5px] text-[#8a7d77]">{plan.sourceName} · {new Date(plan.importedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="ml-auto text-[12.5px] text-ink-4">{plan.sourceName} · {new Date(plan.importedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
           </div>
 
           <Panel title="Suggested tasks from your inquiries" icon={Lightbulb} open={open.suggest} onToggle={() => setOpen(o => ({ ...o, suggest: !o.suggest }))} right={`${suggestions.length}`}>
@@ -538,9 +538,9 @@ export default function WeeklyPlan({ plans, loadPlan, onSavePlan, onChangePlan, 
             </div>
           </Panel>
 
-          <div className="rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-            <div className="px-3 py-2 border-b border-[#342b27] bg-[#110e0d] font-extrabold text-white tracking-wider">ANY DAY THIS WEEK</div>
-            <div className="divide-y divide-[#1f1916]">
+          <div className="rounded-xl border border-line bg-surface overflow-hidden">
+            <div className="px-3 py-2 border-b border-line bg-panel-2 font-extrabold text-ink tracking-wider">ANY DAY THIS WEEK</div>
+            <div className="divide-y divide-line-soft-4">
               {plan.general.map(item => (
                 <TaskRow key={item.id} item={item}
                   onToggle={(v) => change(p => patchItem(p, -1, item.id, { done: v }))}
@@ -559,20 +559,20 @@ export default function WeeklyPlan({ plans, loadPlan, onSavePlan, onChangePlan, 
 
           {plan.extras.length > 0 && (
             <div className="space-y-2">
-              <div className="text-[13px] font-extrabold text-[#dcd2cd] uppercase tracking-wider">Other sheets in the imported file</div>
+              <div className="text-[13px] font-extrabold text-ink-2 uppercase tracking-wider">Other sheets in the imported file</div>
               {plan.extras.map(x => (
-                <div key={x.sheet} className="rounded-xl border border-[#342b27] bg-[#0d0b0a] overflow-hidden">
-                  <button onClick={() => setShowExtra(showExtra === x.sheet ? null : x.sheet)} className="w-full text-left px-3 py-2 font-bold text-white hover:bg-[#181412] flex items-center gap-2">
-                    <FileSpreadsheet size={14} className="text-emerald-400" />{x.sheet}
-                    <span className="text-[12px] text-[#b3a59e] font-normal">{x.rows.length} rows · {showExtra === x.sheet ? 'hide' : 'show'}</span>
+                <div key={x.sheet} className="rounded-xl border border-line bg-surface overflow-hidden">
+                  <button onClick={() => setShowExtra(showExtra === x.sheet ? null : x.sheet)} className="w-full text-left px-3 py-2 font-bold text-ink hover:bg-raised flex items-center gap-2">
+                    <FileSpreadsheet size={14} className="text-good" />{x.sheet}
+                    <span className="text-[12px] text-ink-3 font-normal">{x.rows.length} rows · {showExtra === x.sheet ? 'hide' : 'show'}</span>
                   </button>
                   {showExtra === x.sheet && (
-                    <div className="overflow-x-auto border-t border-[#342b27]">
+                    <div className="overflow-x-auto border-t border-line">
                       <table className="text-[13px] w-full">
                         <tbody>
                           {x.rows.map((r, ri) => (
-                            <tr key={ri} className={ri === 0 ? 'font-bold text-white bg-[#110e0d]' : 'text-[#dcd2cd]'}>
-                              {r.map((c, ci) => <td key={ci} className="px-2 py-1 border-b border-r border-[#1f1916] whitespace-nowrap">{c}</td>)}
+                            <tr key={ri} className={ri === 0 ? 'font-bold text-ink bg-panel-2' : 'text-ink-2'}>
+                              {r.map((c, ci) => <td key={ci} className="px-2 py-1 border-b border-r border-line-soft-4 whitespace-nowrap">{c}</td>)}
                             </tr>
                           ))}
                         </tbody>

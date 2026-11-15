@@ -204,12 +204,12 @@ export function initialDraftFields(inquiry, currentUser) {
   };
 }
 
-function port(name, code) {
+export function port(name, code) {
   if (!name) return '—';
   return code && !name.includes(code) ? `${name} (${code})` : name;
 }
 
-function formatWeight(kg) {
+export function formatWeight(kg) {
   const n = Number(kg) || 0;
   return `${n.toLocaleString()} KGS (${(n / 1000).toFixed(2)} MT)`;
 }
@@ -220,7 +220,7 @@ function formatDate(iso) {
   return isNaN(d) ? iso : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function line(label, value) {
+export function line(label, value) {
   // Long labels ("Pickup / origin trucking") still get a space before the value.
   const head = `${label}:`.padEnd(20);
   return head.endsWith(' ') ? `${head}${value}` : `${head} ${value}`;
